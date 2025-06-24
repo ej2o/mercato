@@ -537,7 +537,9 @@
       const { id, name, displayPrice, img, link, is_daily_deal, expires_at } = product;
 
       // Check if product is expired for display purposes (client-side)
-      const isExpired = is_daily_deal && expires_at && (expires_at.toDate ? expires_at.toDate() : expires_at) < new Date();
+      // Convert Firestore Timestamp to Date object if needed
+      const expiryDate = expires_at && expires_at.toDate ? expires_at.toDate() : expires_at;
+      const isExpired = is_daily_deal && expiryDate && expiryDate < new Date();
 
       if (isExpired) {
           return null; // Don't render expired daily deals
@@ -555,13 +557,14 @@
                 e.target.src = 'https://placehold.co/120x70/1F2E40/F8F8F8?text=صورة+غير+موجودة'; // Adjusted dimensions
               }}
             />
-            {/* Dynamic badge with luxury design */}
-            {is_daily_deal && !isExpired && (
+            {/* Dynamic badge for daily deals */}
+            {is_daily_deal && (
               <span className="absolute badge bg-[#D4AF37] text-[#1A2C42] font-bold px-2 py-1 rounded-full shadow-xs">
                 عرض اليوم!
               </span>
             )}
-             {!is_daily_deal && (Math.random() > 0.7) && ( // Random "Special Offer!" for non-daily deals
+            {/* Random "Special Offer!" for non-daily deals */}
+            {!is_daily_deal && Math.random() > 0.7 && ( 
               <span className="absolute badge bg-[#D4AF37] text-[#1A2C42] font-bold px-2 py-1 rounded-full shadow-xs">
                 عرض خاص!
               </span>
@@ -627,6 +630,9 @@
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'products');
           let productsQuery = productsRef;
 
+          // Add console log to see what categoryCode is being used
+          console.log(`Fetching products for categoryCode: ${categoryCode}, userCountry: ${userCountry}`);
+
           if (categoryCode) {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
           }
@@ -644,21 +650,29 @@
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            console.log(`Fetched ${fetchedProducts.length} raw products before client-side filtering/sorting.`); // Log fetched raw count
+
             // Client-side filtering for expired daily deals
             fetchedProducts = fetchedProducts.filter(product => {
-                if (product.is_daily_deal) {
-                    // Convert Firestore Timestamp to Date object if needed
-                    const expiryDate = product.expires_at && product.expires_at.toDate ? product.expires_at.toDate() : product.expires_at;
-                    return !expiryDate || expiryDate >= new Date(); // Only show if not expired
+                // IMPORTANT: expires_at is Firestore Timestamp. Convert it to JS Date for comparison.
+                const expiryDate = product.expires_at && product.expires_at.toDate ? product.expires_at.toDate() : null;
+                const isExpired = product.is_daily_deal && expiryDate && expiryDate < new Date();
+                
+                if (isExpired) {
+                    console.log(`Filtering out expired daily deal: ${product.name}, Expires: ${expiryDate}`); // Log filtered item
+                    return false; // Filter out expired daily deals
                 }
-                return true; // Non-daily deals are always shown (assuming future expires_at)
+                return true; // Keep non-daily deals or active daily deals
             });
+
+            console.log(`Fetched ${fetchedProducts.length} active products after expiration filter.`); // Log active count
 
             // Client-side search filtering
             if (searchTerm) {
               fetchedProducts = fetchedProducts.filter(product =>
                 product.name.toLowerCase().includes(searchTerm.toLowerCase())
               );
+              console.log(`Fetched ${fetchedProducts.length} products after search filter.`); // Log after search
             }
 
             // Client-side sorting
@@ -676,6 +690,7 @@
             });
 
             setProducts(sortedProducts);
+            console.log(`Set ${sortedProducts.length} products to state.`); // Final log
           } catch (err) {
             console.error('حدث خطأ أثناء جلب المنتجات من Firestore:', err);
             setError('تعذر تحميل المنتجات حاليًا. يرجى المحاولة مرة أخرى لاحقًا.');
@@ -909,6 +924,7 @@
           try {
               const dbInstance = window.firebaseFirestore.getFirestore();
               // Access cart items directly at the user's level
+              // This path is for user-specific cart data. Keeping the Canvas path here if it's desired.
               const cartItemsRef = window.firebaseFirestore.collection(
                   dbInstance,
                   'artifacts',
