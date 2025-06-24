@@ -39,7 +39,8 @@
     };
 
     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userProvidedFirebaseConfig;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    // Set mercatoAppId to the projectId to ensure consistency with the bot's direct collection access if needed elsewhere
+    const appId = firebaseConfig.projectId; // Use project ID as default for app ID
     window.mercatoAppId = appId;
 
     const app = initializeApp(firebaseConfig);
@@ -95,6 +96,8 @@
         try {
           const dbInstance = window.firebaseFirestore.getFirestore();
           // Update user document path to comply with Canvas rules
+          // IMPORTANT: If user data is NOT under artifacts/appId, adjust this path.
+          // Assuming user data might still be under a Canvas-like path for user-specific data.
           const userDocRef = window.firebaseFirestore.doc(dbInstance, 'artifacts', window.mercatoAppId, 'users', user.uid);
           const userDocSnap = await window.firebaseFirestore.getDoc(userDocRef);
           if (userDocSnap.exists()) {
@@ -436,9 +439,6 @@
 
     // --- Header Component ---
     const Header = ({ currentUser, pageTitle }) => {
-      // Removed userCountryName and isLoadingCountry states as they are no longer displayed in header
-      // The country logic is handled in App component and ProductDisplayGrid based on currentUser.country
-
       const handleGoBack = () => {
         history.back();
       };
@@ -534,7 +534,14 @@
 
     // --- Product Card Component ---
     const ProductCard = ({ product, onAddToCart }) => {
-      const { id, name, displayPrice, img, link } = product;
+      const { id, name, displayPrice, img, link, is_daily_deal, expires_at } = product;
+
+      // Check if product is expired for display purposes (client-side)
+      const isExpired = is_daily_deal && expires_at && (expires_at.toDate ? expires_at.toDate() : expires_at) < new Date();
+
+      if (isExpired) {
+          return null; // Don't render expired daily deals
+      }
 
       return (
         <article className="product-card rounded-lg shadow-md overflow-hidden flex flex-col group">
@@ -549,7 +556,12 @@
               }}
             />
             {/* Dynamic badge with luxury design */}
-            {Math.random() > 0.7 && (
+            {is_daily_deal && !isExpired && (
+              <span className="absolute badge bg-[#D4AF37] text-[#1A2C42] font-bold px-2 py-1 rounded-full shadow-xs">
+                عرض اليوم!
+              </span>
+            )}
+             {!is_daily_deal && (Math.random() > 0.7) && ( // Random "Special Offer!" for non-daily deals
               <span className="absolute badge bg-[#D4AF37] text-[#1A2C42] font-bold px-2 py-1 rounded-full shadow-xs">
                 عرض خاص!
               </span>
@@ -611,8 +623,8 @@
           }
 
           const dbInstance = window.firebaseFirestore.getFirestore();
-          // Update product collection path to comply with Canvas rules
-          let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
+          // CHANGED: Access the 'products' collection directly from the root
+          let productsRef = window.firebaseFirestore.collection(dbInstance, 'products');
           let productsQuery = productsRef;
 
           if (categoryCode) {
@@ -632,6 +644,16 @@
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            // Client-side filtering for expired daily deals
+            fetchedProducts = fetchedProducts.filter(product => {
+                if (product.is_daily_deal) {
+                    // Convert Firestore Timestamp to Date object if needed
+                    const expiryDate = product.expires_at && product.expires_at.toDate ? product.expires_at.toDate() : product.expires_at;
+                    return !expiryDate || expiryDate >= new Date(); // Only show if not expired
+                }
+                return true; // Non-daily deals are always shown (assuming future expires_at)
+            });
+
             // Client-side search filtering
             if (searchTerm) {
               fetchedProducts = fetchedProducts.filter(product =>
@@ -647,6 +669,7 @@
                 if (sortBy === 'price') {
                     return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
                 } else if (sortBy === 'name') {
+                    // Use 'ar' localeCompare for Arabic sorting
                     return sortOrder === 'asc' ? String(a.name).localeCompare(String(b.name), 'ar') : String(b.name).localeCompare(String(a.name), 'ar');
                 }
                 return 0;
@@ -885,6 +908,7 @@
 
           try {
               const dbInstance = window.firebaseFirestore.getFirestore();
+              // Access cart items directly at the user's level
               const cartItemsRef = window.firebaseFirestore.collection(
                   dbInstance,
                   'artifacts',
@@ -966,7 +990,7 @@
 
             <ProductDisplayGrid 
                 searchTerm={currentSearchTerm} 
-                categoryCode="d1" /* Category code for "Fashion" */
+                categoryCode="clothes" /* CHANGED: Category code for "Fashion" from "d1" to "clothes" */
                 sortBy={sortBy} 
                 sortOrder={sortOrder} 
                 userCountry={effectiveUserCountry}
