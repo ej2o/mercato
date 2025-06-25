@@ -27,21 +27,19 @@
     import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { getFirestore, doc, getDoc, collection, query, where, getDocs, serverTimestamp, addDoc, updateDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // Firebase configuration (preferably from Canvas environment variables)
-    // IMPORTANT: Make sure this `userProvidedFirebaseConfig` matches your actual Firebase project settings.
-    const userProvidedFirebaseConfig = {
+    // Firebase configuration (IMPORTANT: Hardcoding project ID for maximum certainty)
+    const firebaseConfig = {
       apiKey: "AIzaSyCuttEadee0V2YOZHmG53a2Rck7AvFCFEM",
       authDomain: "mercato-2cf1d.firebaseapp.com",
-      projectId: "mercato-2cf1d",
+      projectId: "mercato-2cf1d", // HARDCODED FOR DIAGNOSIS
       storageBucket: "mercato-2cf1d.firebasestorage.app",
       messagingSenderId: "896887505927",
       appId: "1:896887505927:web:6cb474409bdcfdb1e216a2",
       measurementId: "G-4WNGK0W077"
     };
 
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userProvidedFirebaseConfig;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    window.mercatoAppId = appId; // Global access for React components
+    // Use the hardcoded project ID for the app ID globally
+    window.mercatoAppId = firebaseConfig.projectId; 
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -63,11 +61,9 @@
       addDoc: addDoc,
       updateDoc: updateDoc,
       onSnapshot: onSnapshot,
-      setDoc: setDoc // Added setDoc for creating user profile if not exists
+      setDoc: setDoc 
     };
-    window.firebaseAuthInstance = auth; // Make auth instance available for global signOut function
-
-    let currentUserId = null; // Will be set after auth state is known
+    window.firebaseAuthInstance = auth; 
 
     async function initializeAuthForCanvas() {
       try {
@@ -84,7 +80,6 @@
     }
     initializeAuthForCanvas();
 
-    // مهم: جعل هذا الـ Callback غير متزامن (async) للسماح بـ await
     onAuthStateChanged(auth, async (user) => { 
       const initialLoadingScreen = document.getElementById('initial-loading');
       if (initialLoadingScreen) {
@@ -96,17 +91,14 @@
         window.location.href = 'login.html';
       } else {
         console.log("Firebase Auth State Changed. User UID:", user.uid);
-        // انتظر حتى يتم جلب الدولة من Firebase وتحديثها في الـ localStorage
         const userWithCountry = await fetchUserCountryAndRenderApp(user); 
         if (window.renderApp) {
-          window.renderApp(userWithCountry); // مرر كائن المستخدم الذي يحتوي على الدولة المحددة
+          window.renderApp(userWithCountry); 
         }
       }
     });
 
-    // تم تعديل هذه الدالة لإرجاع كائن المستخدم مع الدولة المحللة
     async function fetchUserCountryAndRenderApp(user) {
-      // نبدأ بقيمة افتراضية لـ userCountry، إما من localStorage أو 'SA'
       let userCountry = localStorage.getItem('mercato_selected_country') || 'SA'; 
       let userDataToPass = { ...user, country: userCountry }; 
 
@@ -125,14 +117,12 @@
               localStorage.setItem('mercato_selected_country', userCountry);
               console.log("home-appliances: User country fetched from Firestore:", userCountry);
             } else {
-              // إذا كان الملف الشخصي موجوداً ولكن لا يوجد حقل دولة، عيّنه إلى 'SA'
               userCountry = 'SA'; 
               console.log("home-appliances: User profile exists, but no country field. Setting to 'SA'.");
               await window.firebaseFirestore.updateDoc(userProfileDocRef, { country: userCountry });
               localStorage.setItem('mercato_selected_country', userCountry);
             }
           } else {
-            // إذا لم يكن الملف الشخصي موجوداً، قم بإنشاء ملف شخصي أساسي مع دولة افتراضية 'SA'
             userCountry = 'SA'; 
             console.log("home-appliances: User profile does not exist. Creating with default country:", userCountry);
             await window.firebaseFirestore.setDoc(userProfileDocRef, {
@@ -145,14 +135,13 @@
           }
         } catch (error) {
           console.error("home-appliances: Error fetching/setting user country:", error);
-          // في حال حدوث خطأ، استخدم القيمة من localStorage أو 'SA' كحل احتياطي نهائي
           userCountry = localStorage.getItem('mercato_selected_country') || 'SA'; 
           localStorage.setItem('mercato_selected_country', userCountry);
         }
       }
       console.log("home-appliances: Final user country resolved for rendering:", userCountry);
-      userDataToPass.country = userCountry; // تحديث حقل الدولة في كائن المستخدم
-      return userDataToPass; // إرجاع كائن المستخدم مع الدولة المحللة
+      userDataToPass.country = userCountry; 
+      return userDataToPass; 
     }
 
     window.handleSignOut = async () => {
@@ -196,7 +185,7 @@
       min-height: 100vh;
       line-height: 1.6;
       text-align: right;
-      font-size: 0.625rem; /* ~78% من 0.8rem، لتقليص العناصر الأخرى بشكل فعال */
+      font-size: 0.625rem; /* ~78% of 0.8rem, effectively scaling down other elements */
     }
 
     /* Tailwind font sizes - to keep text sizes appropriate */
@@ -586,7 +575,7 @@
                 const userCartCollectionRef = window.firebaseFirestore.collection(
                     dbInstance,
                     'artifacts',
-                    window.mercatoAppId,
+                    window.mercatoAppId, // Use the global appId (now hardcoded)
                     'users',
                     currentUser.uid,
                     'cartItems'
@@ -785,43 +774,47 @@
           setError(null);
           
           console.log("ProductDisplayGrid: Starting product fetch for category:", categoryCode, "and country:", userCountry);
+          console.log("ProductDisplayGrid: Using App ID:", window.mercatoAppId); // Log the actual app ID being used
 
           if (!window.firebaseFirestore || !window.firebaseFirestore.getFirestore) {
               setError("خطأ: Firebase Firestore غير مهيأ بشكل صحيح.");
               setLoading(false);
               console.error("ProductDisplayGrid: Firebase Firestore is not initialized.");
-              onProductsFetched(0, "Firebase Not Initialized"); // Update parent with count and error
+              onProductsFetched(0, "Firebase Not Initialized"); 
               return;
           }
 
           const dbInstance = window.firebaseFirestore.getFirestore();
           // The public products collection path: artifacts/{appId}/public/data/products
+          // IMPORTANT: Use window.mercatoAppId here
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
           let productsQuery = productsRef;
           
           console.log("ProductDisplayGrid: Base products collection path:", productsRef.path);
 
-          // تطبيق فلتر الفئة إذا تم توفيره
-          if (categoryCode) {
-            productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
-            console.log("ProductDisplayGrid: Applied category filter: category == ", categoryCode);
-          }
+          // --- DIAGNOSTIC STEP: Comment out filters one by one ---
+          // 1. Initial test: Fetch ALL products without any filters
+          // productsQuery = productsRef; // No filters initially
 
-          // تطبيق فلتر الدولة.
-          // IMPORTANT: The `availableCountries` field in your Firestore documents must be an ARRAY.
-          // البوت مضبوط لتخزينها كمصفوفة.
+          // 2. Test with Category filter only
+          productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
+          console.log("ProductDisplayGrid: Applied category filter: category == ", categoryCode);
+          
+
+          // 3. Test with Country filter only (ensure it's after the category filter if both are needed)
           if (userCountry && userCountry !== 'اختر الدولة' && userCountry !== 'لم يتم الاختيار' && userCountry !== '') {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
             console.log("ProductDisplayGrid: Applied country filter: availableCountries array-contains ", userCountry);
           } else {
-             // إذا لم يتم اختيار userCountry بشكل صريح أو كانت غير صالحة/افتراضية
              setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
              setLoading(false);
              setProducts([]);
              console.log("ProductDisplayGrid: User country not selected or invalid. Skipping country filter and showing error.");
-             onProductsFetched(0, "Country Not Selected/Invalid"); // Update parent with count and error
-             return; // إيقاف الجلب إذا كانت الدولة غير موجودة ومطلوبة للعرض
+             onProductsFetched(0, "Country Not Selected/Invalid"); 
+             return; 
           }
+          // --- END DIAGNOSTIC STEP ---
+
 
           try {
             console.log("ProductDisplayGrid: Attempting to get documents with query...");
@@ -839,34 +832,31 @@
 
             // Client-side sorting
             const sortedProducts = [...fetchedProducts].sort((a, b) => {
-                // التأكد من تحويل السعر إلى رقم قبل المقارنة، ومعالجة القيم غير الصالحة
                 const priceA = parseFloat(String(a.displayPrice || '0').replace(/[^\d.]/g, '')) || 0;
                 const priceB = parseFloat(String(b.displayPrice || '0').replace(/[^\d.]/g, '')) || 0;
 
                 if (sortBy === 'price') {
                     return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
                 } else if (sortBy === 'name') {
-                    // استخدام 'ar' لترتيب الأسماء العربية بشكل صحيح
                     return sortOrder === 'asc' ? String(a.name).localeCompare(String(b.name), 'ar') : String(b.name).localeCompare(String(a.name), 'ar');
                 }
                 return 0;
             });
 
             setProducts(sortedProducts);
-            onProductsFetched(sortedProducts.length, null); // Update parent with actual product count
+            onProductsFetched(sortedProducts.length, null); 
             if (sortedProducts.length === 0) {
                  setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة!');
             }
           } catch (err) {
             console.error('ProductDisplayGrid: Error fetching products from Firestore:', err);
             setError('تعذر تحميل المنتجات حاليًا. يرجى المحاولة مرة أخرى لاحقًا.');
-            onProductsFetched(0, err.message || 'Error fetching'); // Update parent with count and error
+            onProductsFetched(0, err.message || 'Error fetching'); 
           } finally {
             setLoading(false);
           }
         };
 
-        // يجب أن يتم الجلب فقط إذا كانت userCountry موجودة وغير فارغة
         if (userCountry) {
             fetchProducts();
         } else {
@@ -874,7 +864,7 @@
             setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
             setProducts([]);
             console.log("ProductDisplayGrid: userCountry is null/empty. Not fetching products.");
-            onProductsFetched(0, "Country Not Provided"); // Update parent
+            onProductsFetched(0, "Country Not Provided"); 
         }
       }, [categoryCode, userCountry, searchTerm, sortBy, sortOrder, onProductsFetched]);
 
@@ -887,7 +877,7 @@
         );
       }
 
-      if (error && products.length === 0) { // Only show error if no products are displayed and there's an error state
+      if (error && products.length === 0) { 
         return (
           <div className="text-center p-3.5 bg-red-50 border border-red-300 text-red-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs">
             <p className="text-base font-bold mb-1.5">عفواً، حدث خطأ!</p>
@@ -899,7 +889,6 @@
         );
       }
       
-      // If there are no products after loading (and no specific error, or error implies no products found)
       if (products.length === 0) { 
         return (
           <div className="text-center p-3.5 bg-gray-50 border border-gray-300 text-gray-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs flex flex-col items-center">
@@ -1066,7 +1055,7 @@
       // Function to display a custom modal (replaces alert/confirm)
       const showModal = useCallback((title, message, isError = false) => {
         setModalInfo({ title, message, type: isError ? 'error' : 'success', onClose: () => setModalInfo(null) });
-      }, []);
+      }, []); 
 
       const handleSearch = (term) => {
         setCurrentSearchTerm(term);
@@ -1110,10 +1099,10 @@
               const cartItemsCollectionRef = window.firebaseFirestore.collection(
                   dbInstance,
                   'artifacts',
-                  window.mercatoAppId,
+                  window.mercatoAppId, // Use the global appId (now hardcoded)
                   'users',
                   currentUser.uid,
-                  'cartItems' // This is a collection of cart items
+                  'cartItems' 
               );
               console.log("Adding to cart: Cart collection path:", cartItemsCollectionRef.path);
 
@@ -1139,28 +1128,24 @@
               } else {
                   // If item does not exist, add it as a new document to the cartItems collection
                   await window.firebaseFirestore.addDoc(cartItemsCollectionRef, {
-                      productId: product.id, // Keep a reference to the original product ID
+                      productId: product.id, 
                       name: product.name,
                       displayPrice: product.displayPrice,
                       img: product.img,
                       link: product.link,
-                      quantity: 1, // Start with quantity 1
+                      quantity: 1, 
                       createdAt: window.firebaseFirestore.serverTimestamp(),
-                      userId: currentUser.uid // Store userId for ownership
+                      userId: currentUser.uid 
                   });
                   showModal('تمت الإضافة بنجاح!', `تم إضافة المنتج "${product.name}" إلى سلتك.`);
                   console.log("Cart: Added new product:", product.name);
               }
-              // Optional: navigate to cart page after adding/updating
-              // window.location.href = 'cart.html';
-
           } catch (error) {
               console.error("Error adding to cart: ", error);
               showModal('خطأ في إضافة المنتج', `تعذر إضافة المنتج إلى السلة: ${error.message}`, true);
           }
-      }, [currentUser, showModal]); // Include showModal in dependencies for useCallback
+      }, [currentUser, showModal]); 
 
-      // هنا نستخدم user.country الذي تم تحديده بعد جلب الملف الشخصي
       const effectiveUserCountry = currentUser?.country || 'SA'; 
       console.log("App: Rendering with effectiveUserCountry:", effectiveUserCountry);
 
@@ -1204,12 +1189,12 @@
 
             <ProductDisplayGrid 
                 searchTerm={currentSearchTerm} 
-                categoryCode="homeappliances" /* This must match the 'category' field in your Firestore products */
+                categoryCode="homeappliances" 
                 sortBy={sortBy} 
                 sortOrder={sortOrder} 
                 userCountry={effectiveUserCountry}
                 onAddToCart={handleAddToCart}
-                onProductsFetched={handleProductsFetched} /* Pass the callback */
+                onProductsFetched={handleProductsFetched} 
             />
           </main>
 
