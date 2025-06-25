@@ -25,7 +25,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    // أضف collection و query و where لجلب عناصر السلة في الرأس (Header)
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // تكوين Firebase (يُفضل أن يكون من متغيرات البيئة في بيئة Canvas)
     const userProvidedFirebaseConfig = {
@@ -55,7 +56,11 @@
       getDoc: getDoc,
       setDoc: setDoc,
       serverTimestamp: serverTimestamp,
-      onSnapshot: onSnapshot // مطلوب لرأس الصفحة للاستماع إلى تغييرات السلة
+      onSnapshot: onSnapshot,
+      // أضف هذه الدوال لدعم جلب السلة في الرأس
+      collection: collection,
+      query: query,
+      where: where
     };
     window.firebaseAuthInstance = auth; // جعل مثيل المصادقة متاحًا لتسجيل الخروج
 
@@ -63,11 +68,13 @@
       try {
         if (typeof __initial_auth_token !== 'undefined') {
           await signInWithCustomToken(auth, __initial_auth_token);
+          console.log("ProfilePage: Firebase: Signed in with custom token.");
         } else {
           await signInAnonymously(auth);
+          console.log("ProfilePage: Firebase: Signed in anonymously.");
         }
       } catch (error) {
-        console.error("خطأ في تهيئة مصادقة Firebase:", error);
+        console.error("ProfilePage: خطأ في تهيئة مصادقة Firebase:", error);
       }
     }
     initializeAuthForCanvas();
@@ -79,8 +86,10 @@
       }
 
       if (!user) {
+        console.log("ProfilePage: No user logged in. Redirecting to login.html...");
         window.location.href = 'login.html';
       } else {
+        console.log("ProfilePage: Auth state changed. User UID:", user.uid);
         if (window.renderApp) {
           window.renderApp(user);
         }
@@ -90,9 +99,10 @@
     window.handleSignOut = async () => {
       try {
         await signOut(window.firebaseAuthInstance); // استخدام مثيل المصادقة المعروض عالميًا
+        console.log("ProfilePage: User signed out. Redirecting to login.html...");
         window.location.href = 'login.html';
       } catch (error) {
-        console.error("حدث خطأ أثناء تسجيل الخروج: ", error);
+        console.error("ProfilePage: حدث خطأ أثناء تسجيل الخروج: ", error);
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]';
         modal.innerHTML = `
@@ -392,15 +402,19 @@
       const textColorClass = 'text-white';
       const borderColorClass = isSuccess ? 'border-green-400' : 'border-red-400';
 
+      const [showModal, setShowModal] = useState(false);
+      useEffect(() => { const timer = setTimeout(() => setShowModal(true), 50); return () => clearTimeout(timer); }, []);
+      const handleClose = () => { setShowModal(false); setTimeout(onClose, 300); };
+
       return (
-        <div className="custom-modal-overlay show">
-          <div className="custom-modal-content">
+        <div className={`custom-modal-overlay ${showModal ? 'show' : ''}`}>
+          <div className={`custom-modal-content ${showModal ? 'show' : ''}`}>
             <div className={`p-4 rounded-lg border ${bgColorClass} ${textColorClass} mb-3`}>
               <h3 className="text-xl font-bold mb-2">{title}</h3>
               <p className="text-sm">{message}</p>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="bg-[#D4AF37] text-[#1A2C42] font-bold py-2 px-6 rounded-full hover:bg-[#C29B27] transition-colors duration-300 shadow-sm text-sm"
             >
               حسناً
@@ -419,33 +433,37 @@
         setIsLoggedIn(!!currentUser);
       }, [currentUser]);
 
-      // تأثير للاستماع إلى تغييرات سلة التسوق في Firestore
+      // تأثير للاستماع إلى تغييرات سلة التسوق في Firestore (المسار الصحيح كـ Collection)
       useEffect(() => {
         let unsubscribeCart = () => {};
-        if (currentUser && currentUser.uid) {
-          const userCartRef = window.firebaseFirestore.doc(
-            window.firebaseFirestore.dbInstance,
-            'artifacts',
-            window.mercatoAppId,
-            'users',
-            currentUser.uid,
-            'userCart',
-            'items'
-          );
+        if (currentUser && currentUser.uid && window.firebaseFirestore && window.firebaseFirestore.onSnapshot) {
+            const dbInstance = window.firebaseFirestore.getFirestore();
+            // الاستماع إلى مجموعة 'cartItems' للمستخدم الحالي
+            const userCartCollectionRef = window.firebaseFirestore.collection(
+                dbInstance,
+                'artifacts',
+                window.mercatoAppId,
+                'users',
+                currentUser.uid,
+                'cartItems'
+            );
+            console.log("Profile Header: Listening to cart changes at:", userCartCollectionRef.path);
 
-          unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().items) {
-              const items = docSnap.data().items;
-              setCartItemCount(items.reduce((total, item) => total + (item.quantity || 0), 0));
-            } else {
-              setCartItemCount(0);
-            }
-          }, (error) => {
-            console.error("خطأ في جلب عناصر سلة التسوق:", error);
-            // اختياريًا، عرض مودال هنا إذا فشل جلب السلة
-          });
+            // استخدام onSnapshot للحصول على تحديثات في الوقت الفعلي للمجموعة
+            unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartCollectionRef, (snapshot) => {
+                let totalCount = 0;
+                snapshot.forEach(doc => {
+                    const itemData = doc.data();
+                    totalCount += itemData.quantity || 0;
+                });
+                setCartItemCount(totalCount);
+                console.log("Profile Header: Cart items updated. Total:", totalCount);
+            }, (error) => {
+                console.error("Profile Header: Error fetching cart items:", error);
+            });
         } else {
-          setCartItemCount(0); // إعادة تعيين عدد السلة إذا قام المستخدم بتسجيل الخروج
+            setCartItemCount(0); // إعادة تعيين عدد السلة إذا قام المستخدم بتسجيل الخروج أو Firebase غير جاهز
+            console.log("Profile Header: Not listening to cart (no user or Firebase not ready).");
         }
 
         return () => unsubscribeCart(); // تنظيف المستمع عند إلغاء تحميل المكون
@@ -660,7 +678,7 @@
       );
     };
 
-    // قائمة الدول المحددة
+    // قائمة الدول المحددة (تستخدم الرموز)
     const countries = [
         { code: 'SA', name: 'السعودية' },
         { code: 'IQ', name: 'العراق' },
@@ -676,19 +694,20 @@
     // --- مكون صفحة الملف الشخصي (ProfilePage) ---
     const ProfilePage = ({ currentUser }) => {
       const [userProfile, setUserProfile] = useState(null);
-      const [editMode, setEditMode] = useState(false); // وضع التحرير للبيانات الأساسية
+      const [editMode, setEditMode] = useState(false);
       const [editedName, setEditedName] = useState('');
       const [selectedCountry, setSelectedCountry] = useState('');
       const [loading, setLoading] = useState(true);
       const [modal, setModal] = useState(null);
       const [isUpdating, setIsUpdating] = useState(false);
-      const [activeTab, setActiveTab] = useState('profile'); // tabs: profile, cart (was wishlist)
+      const [activeTab, setActiveTab] = useState('profile'); // tabs: profile, cart
       const [cartItems, setCartItems] = useState([]); // لحفظ عناصر السلة
 
       // تأثير لجلب ملف تعريف المستخدم
       useEffect(() => {
         const fetchUserProfile = async () => {
           if (!currentUser || !currentUser.uid || !window.firebaseFirestore || !window.mercatoAppId) {
+            console.error("ProfilePage: User data or Firebase not initialized.");
             setModal({ message: 'خطأ: بيانات المستخدم غير متوفرة أو Firebase غير مهيأ.', type: 'error', onClose: () => setModal(null) });
             setLoading(false);
             return;
@@ -697,36 +716,51 @@
           setLoading(true);
           try {
             const dbInstance = window.firebaseFirestore.getFirestore();
-            // مسار Firestore لملف تعريف المستخدم
             const userDocRef = window.firebaseFirestore.doc(dbInstance, 'artifacts', window.mercatoAppId, 'users', currentUser.uid, 'userProfiles', 'profile');
+            console.log("ProfilePage: Attempting to fetch user profile from:", userDocRef.path);
             const userDocSnap = await window.firebaseFirestore.getDoc(userDocRef);
 
             if (userDocSnap.exists()) {
               const data = userDocSnap.data();
+              console.log("ProfilePage: User profile data fetched:", data);
               setUserProfile(data);
-              setEditedName(data.name || ''); // تعيين الاسم القابل للتحرير
-              // إذا كانت الدولة موجودة في البيانات، استخدمها، وإلا فاستخدم "لم يتم الاختيار"
-              setSelectedCountry(data.country && countries.some(c => c.code === data.country) ? data.country : 'لم يتم الاختيار');
-              // تخزين الدولة في localStorage لتعميمها على مستوى التطبيق
-              if (data.country) {
-                localStorage.setItem('mercato_selected_country', data.country);
+              setEditedName(data.name || '');
+              
+              // تحقق من أن الدولة الموجودة في Firestore هي من الرموز المعرفة لدينا
+              const countryCodeFromFirestore = data.country;
+              const isCountryValid = countries.some(c => c.code === countryCodeFromFirestore);
+              
+              setSelectedCountry(isCountryValid ? countryCodeFromFirestore : 'SA'); // الافتراضي 'SA' إذا لم تكن صالحة
+              console.log("ProfilePage: selectedCountry state set to:", (isCountryValid ? countryCodeFromFirestore : 'SA'));
+
+              if (isCountryValid) { // فقط حفظ الدولة الصالحة في localStorage
+                localStorage.setItem('mercato_selected_country', countryCodeFromFirestore);
+                console.log("ProfilePage: Saved to localStorage (mercato_selected_country):", countryCodeFromFirestore);
+              } else {
+                 // إذا كانت الدولة غير صالحة، قم بتعيين 'SA' كافتراضي في localStorage
+                 localStorage.setItem('mercato_selected_country', 'SA');
+                 console.log("ProfilePage: Defaulted to 'SA' in localStorage as country from Firestore was invalid or missing.");
               }
+
             } else {
               // إذا لم يكن هناك ملف شخصي، قم بإنشاء واحد أساسي
+              const defaultCountry = 'SA'; // تعيين SA كقيمة افتراضية ثابتة
+              console.log("ProfilePage: User profile does not exist. Creating with default country:", defaultCountry);
               await window.firebaseFirestore.setDoc(userDocRef, {
                 email: currentUser.email,
                 createdAt: window.firebaseFirestore.serverTimestamp(),
-                country: 'لم يتم الاختيار', // قيمة افتراضية
-                name: '', // اسم افتراضي فارغ
+                country: defaultCountry,
+                name: '',
               });
-              setUserProfile({ email: currentUser.email, country: 'لم يتم الاختيار', name: '' });
+              setUserProfile({ email: currentUser.email, country: defaultCountry, name: '' });
               setEditedName('');
-              setSelectedCountry('لم يتم الاختيار');
-              localStorage.setItem('mercato_selected_country', 'لم يتم الاختيار'); // تحديث localStorage
+              setSelectedCountry(defaultCountry);
+              localStorage.setItem('mercato_selected_country', defaultCountry);
+              console.log("ProfilePage: New profile created, saved 'SA' to localStorage.");
               setModal({ message: 'تم إنشاء ملفك الشخصي بنجاح! يرجى إكمال بياناتك.', type: 'success', onClose: () => setModal(null) });
             }
           } catch (error) {
-            console.error("خطأ في جلب أو إنشاء ملف تعريف المستخدم:", error);
+            console.error("ProfilePage: خطأ في جلب أو إنشاء ملف تعريف المستخدم:", error);
             setModal({ message: 'تعذر تحميل أو إنشاء ملفك الشخصي. يرجى المحاولة مرة أخرى.', type: 'error', onClose: () => setModal(null) });
           } finally {
             setLoading(false);
@@ -740,28 +774,32 @@
       useEffect(() => {
         let unsubscribeCart = () => {};
         if (currentUser && currentUser.uid) {
-          const userCartDocRef = window.firebaseFirestore.doc(
-            window.firebaseFirestore.dbInstance,
-            'artifacts',
-            window.mercatoAppId,
-            'users',
-            currentUser.uid,
-            'userCart', // هذا هو اسم المستند الذي سيحتوي على مصفوفة العناصر
-            'items' // هذا هو معرف المستند الفعلي داخل userCart
+          const dbInstance = window.firebaseFirestore.getFirestore();
+          // الاستماع إلى مجموعة 'cartItems' للمستخدم الحالي (مثلما في Header)
+          const userCartCollectionRef = window.firebaseFirestore.collection(
+              dbInstance,
+              'artifacts',
+              window.mercatoAppId,
+              'users',
+              currentUser.uid,
+              'cartItems'
           );
+          console.log("ProfilePage: Listening to cart changes at:", userCartCollectionRef.path);
 
-          unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartDocRef, (docSnap) => {
-            if (docSnap.exists() && docSnap.data().items) {
-              setCartItems(docSnap.data().items);
-            } else {
-              setCartItems([]);
-            }
+          unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartCollectionRef, (snapshot) => {
+            const fetchedCartItems = [];
+            snapshot.forEach(doc => {
+                fetchedCartItems.push({ id: doc.id, ...doc.data() });
+            });
+            setCartItems(fetchedCartItems);
+            console.log("ProfilePage: Fetched cart items for tab:", fetchedCartItems.length);
           }, (err) => {
-            console.error("خطأ في جلب عناصر السلة لصفحة الملف الشخصي:", err);
+            console.error("ProfilePage: خطأ في جلب عناصر السلة لصفحة الملف الشخصي:", err);
             // لا نعرض رسالة خطأ للمستخدم هنا، لأن صفحة السلة الرئيسية هي المسؤولة عن ذلك
           });
         } else {
           setCartItems([]);
+          console.log("ProfilePage: Not listening to cart (no user or Firebase not ready).");
         }
 
         return () => unsubscribeCart(); // إزالة المستمع عند إلغاء تحميل المكون
@@ -770,6 +808,7 @@
 
       const handleCountryChange = (e) => {
         setSelectedCountry(e.target.value);
+        console.log("ProfilePage: Country selected by user:", e.target.value);
       };
 
       const handleNameChange = (e) => {
@@ -787,7 +826,11 @@
             return;
         }
 
-        if (selectedCountry === 'لم يتم الاختيار' || selectedCountry === '') {
+        // هنا يجب أن نتأكد أن selectedCountry ليست قيمة "اختر دولتك"
+        // لأننا الآن نجبر القيمة الافتراضية على 'SA' عند الإنشاء.
+        // لذا هذا التحقق قد لا يكون ضرورياً إذا كان 'SA' هو الافتراضي
+        // ولكن أبقيه لضمان اختيار دولة صالحة
+        if (!selectedCountry || selectedCountry === 'لم يتم الاختيار') { // تأكد من أن القيمة ليست فارغة أو الافتراضية القديمة
             setModal({ message: 'الرجاء اختيار دولة صحيحة لتحديث ملفك الشخصي.', type: 'error', onClose: () => setModal(null) });
             return;
         }
@@ -796,17 +839,20 @@
         try {
           const dbInstance = window.firebaseFirestore.getFirestore();
           const userDocRef = window.firebaseFirestore.doc(dbInstance, 'artifacts', window.mercatoAppId, 'users', currentUser.uid, 'userProfiles', 'profile');
+          console.log("ProfilePage: Attempting to save profile data to:", userDocRef.path);
+          console.log("ProfilePage: Saving name:", editedName, "and country:", selectedCountry);
           await window.firebaseFirestore.setDoc(userDocRef, {
             name: editedName,
-            country: selectedCountry
+            country: selectedCountry // سيتم حفظ رمز الدولة (SA, KW, EG)
           }, { merge: true });
 
           setUserProfile(prev => ({ ...prev, name: editedName, country: selectedCountry }));
-          localStorage.setItem('mercato_selected_country', selectedCountry); // تحديث localStorage
+          localStorage.setItem('mercato_selected_country', selectedCountry); // تحديث localStorage برمز الدولة
+          console.log("ProfilePage: Successfully saved profile to Firestore. Updated localStorage with:", selectedCountry);
           setEditMode(false); // الخروج من وضع التحرير بعد التحديث
           setModal({ message: 'تم تحديث ملفك الشخصي بنجاح!', type: 'success', onClose: () => setModal(null) });
         } catch (error) {
-          console.error("خطأ في تحديث الملف الشخصي:", error);
+          console.error("ProfilePage: خطأ في تحديث الملف الشخصي:", error);
           setModal({ message: 'فشل تحديث الملف الشخصي. يرجى المحاولة مرة أخرى.', type: 'error', onClose: () => setModal(null) });
         } finally {
           setIsUpdating(false);
@@ -906,7 +952,8 @@
                                 onChange={handleCountryChange}
                                 className="block w-full p-2.5 rounded-lg border border-[#5A7D9D] focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all duration-300 text-sm bg-[#2C3E50] text-[#F8F8F8] appearance-none"
                             >
-                                <option value="لم يتم الاختيار" disabled>اختر دولتك</option>
+                                {/* جعل خيار "اختر دولتك" اختياريًا أو إزالته إذا كنا نفرض قيمة افتراضية */}
+                                {/* <option value="لم يتم الاختيار" disabled>اختر دولتك</option> */}
                                 {countries.map((country) => (
                                     <option key={country.code} value={country.code}>
                                         {country.name}
@@ -968,10 +1015,10 @@
                   <div className="space-y-4">
                     {cartItems.map(item => (
                       <div key={item.id} className="bg-[#2C3E50] p-4 rounded-lg shadow-md flex items-center text-sm">
-                        <img src={item.imageUrl || `https://placehold.co/60x60/1F2E40/D4AF37?text=صورة`} alt={item.name} className="w-16 h-16 object-cover rounded-md ml-3 flex-shrink-0" />
+                        <img src={item.img || `https://placehold.co/60x60/1F2E40/D4AF37?text=صورة`} alt={item.name} className="w-16 h-16 object-cover rounded-md ml-3 flex-shrink-0" />
                         <div className="flex-grow">
                           <p className="font-semibold text-white">{item.name}</p>
-                          <p className="text-[#D4AF37]">{item.price}</p>
+                          <p className="text-[#D4AF37]">{item.displayPrice}</p>
                           <p className="text-gray-300">الكمية: {item.quantity}</p>
                         </div>
                       </div>
