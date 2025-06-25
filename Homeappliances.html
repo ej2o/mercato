@@ -196,7 +196,7 @@
       min-height: 100vh;
       line-height: 1.6;
       text-align: right;
-      font-size: 0.625rem; /* ~78% of 0.8rem, effectively scaling down other elements */
+      font-size: 0.625rem; /* ~78% من 0.8rem، لتقليص العناصر الأخرى بشكل فعال */
     }
 
     /* Tailwind font sizes - to keep text sizes appropriate */
@@ -774,7 +774,7 @@
     );
 
     // --- Product Display Grid Component ---
-    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart }) => {
+    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart, onProductsFetched }) => {
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -783,12 +783,14 @@
         const fetchProducts = async () => {
           setLoading(true);
           setError(null);
+          
           console.log("ProductDisplayGrid: Starting product fetch for category:", categoryCode, "and country:", userCountry);
 
           if (!window.firebaseFirestore || !window.firebaseFirestore.getFirestore) {
               setError("خطأ: Firebase Firestore غير مهيأ بشكل صحيح.");
               setLoading(false);
               console.error("ProductDisplayGrid: Firebase Firestore is not initialized.");
+              onProductsFetched(0, "Firebase Not Initialized"); // Update parent with count and error
               return;
           }
 
@@ -817,6 +819,7 @@
              setLoading(false);
              setProducts([]);
              console.log("ProductDisplayGrid: User country not selected or invalid. Skipping country filter and showing error.");
+             onProductsFetched(0, "Country Not Selected/Invalid"); // Update parent with count and error
              return; // إيقاف الجلب إذا كانت الدولة غير موجودة ومطلوبة للعرض
           }
 
@@ -824,7 +827,7 @@
             console.log("ProductDisplayGrid: Attempting to get documents with query...");
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            console.log("ProductDisplayGrid: Fetched", fetchedProducts.length, "products.");
+            console.log("ProductDisplayGrid: Fetched", fetchedProducts.length, "products before client-side filters/sorting.");
 
             // Client-side search filtering
             if (searchTerm) {
@@ -850,12 +853,14 @@
             });
 
             setProducts(sortedProducts);
+            onProductsFetched(sortedProducts.length, null); // Update parent with actual product count
             if (sortedProducts.length === 0) {
                  setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة!');
             }
           } catch (err) {
             console.error('ProductDisplayGrid: Error fetching products from Firestore:', err);
             setError('تعذر تحميل المنتجات حاليًا. يرجى المحاولة مرة أخرى لاحقًا.');
+            onProductsFetched(0, err.message || 'Error fetching'); // Update parent with count and error
           } finally {
             setLoading(false);
           }
@@ -869,8 +874,9 @@
             setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
             setProducts([]);
             console.log("ProductDisplayGrid: userCountry is null/empty. Not fetching products.");
+            onProductsFetched(0, "Country Not Provided"); // Update parent
         }
-      }, [categoryCode, userCountry, searchTerm, sortBy, sortOrder]);
+      }, [categoryCode, userCountry, searchTerm, sortBy, sortOrder, onProductsFetched]);
 
 
       if (loading) {
@@ -1043,11 +1049,24 @@
       const [sortOrder, setSortOrder] = useState('asc');
       // State for the custom modal
       const [modalInfo, setModalInfo] = useState(null);
+      // New state to display product fetch status
+      const [productFetchStatus, setProductFetchStatus] = useState('جاري التحميل...');
+      const [productsCount, setProductsCount] = useState(0);
+
+      // Function to update product fetch status from child component
+      const handleProductsFetched = useCallback((count, errorMessage) => {
+          setProductsCount(count);
+          if (errorMessage) {
+              setProductFetchStatus(`خطأ: ${errorMessage}`);
+          } else {
+              setProductFetchStatus(`تم جلب ${count} منتج.`);
+          }
+      }, []);
 
       // Function to display a custom modal (replaces alert/confirm)
       const showModal = useCallback((title, message, isError = false) => {
         setModalInfo({ title, message, type: isError ? 'error' : 'success', onClose: () => setModalInfo(null) });
-      }, []); // Empty dependency array as showModal itself doesn't depend on changing props
+      }, []);
 
       const handleSearch = (term) => {
         setCurrentSearchTerm(term);
@@ -1154,9 +1173,11 @@
               منتجات قسم الأدوات المنزلية
             </h2>
 
-            {/* Debugging: Display the effective user country */}
+            {/* Debugging: Display the effective user country and product count */}
             <div className="text-center text-sm text-[#5A7D9D] mb-4">
                 البلد الحالي للمستخدم: <span className="font-bold text-[#D4AF37]">{effectiveUserCountry || 'غير محدد'}</span>
+                <br/>
+                حالة جلب المنتجات: <span className="font-bold text-[#D4AF37]">{productFetchStatus}</span>
                 <br/>
                 (لتغيير البلد، يرجى زيارة <a href="profile.html" className="underline text-[#D4AF37] hover:text-white">صفحة الملف الشخصي</a>)
             </div>
@@ -1188,6 +1209,7 @@
                 sortOrder={sortOrder} 
                 userCountry={effectiveUserCountry}
                 onAddToCart={handleAddToCart}
+                onProductsFetched={handleProductsFetched} /* Pass the callback */
             />
           </main>
 
