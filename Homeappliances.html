@@ -4,24 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>أدوات منزلية – ميركاتو | تسوق بذكاء، عش أفضل</title>
-  <!-- Favicon -->
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
 
-  <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-KPJ7ZG4R');</script>
-  <!-- End Google Tag Manager -->
-
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts for Cairo -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;800;900&display=swap" rel="stylesheet" />
 
-  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -60,7 +53,7 @@
       serverTimestamp: serverTimestamp,
       addDoc: addDoc,
       updateDoc: updateDoc,
-      onSnapshot: onSnapshot,
+      onSnapshot: onSnapshot, // Expose onSnapshot
       setDoc: setDoc 
     };
     window.firebaseAuthInstance = auth; 
@@ -91,58 +84,12 @@
         window.location.href = 'login.html';
       } else {
         console.log("Firebase Auth State Changed. User UID:", user.uid);
-        const userWithCountry = await fetchUserCountryAndRenderApp(user); 
+        // We will now fetch/listen to user country directly in the App component
         if (window.renderApp) {
-          window.renderApp(userWithCountry); 
+          window.renderApp(user); // Pass raw user, country will be managed by App component
         }
       }
     });
-
-    async function fetchUserCountryAndRenderApp(user) {
-      let userCountry = localStorage.getItem('mercato_selected_country') || 'SA'; 
-      let userDataToPass = { ...user, country: userCountry }; 
-
-      if (user && window.firebaseFirestore && window.firebaseFirestore.getFirestore) {
-        try {
-          const dbInstance = window.firebaseFirestore.getFirestore();
-          const userProfileDocRef = window.firebaseFirestore.doc(dbInstance, 'artifacts', window.mercatoAppId, 'users', user.uid, 'userProfiles', 'profile');
-          console.log("home-appliances: Fetching user profile from:", userProfileDocRef.path);
-          const userDocSnap = await window.firebaseFirestore.getDoc(userProfileDocRef);
-
-          if (userDocSnap.exists()) {
-            const data = userDocSnap.data();
-            console.log("home-appliances: User profile data fetched:", data);
-            if (data.country) {
-              userCountry = data.country;
-              localStorage.setItem('mercato_selected_country', userCountry);
-              console.log("home-appliances: User country fetched from Firestore:", userCountry);
-            } else {
-              userCountry = 'SA'; 
-              console.log("home-appliances: User profile exists, but no country field. Setting to 'SA'.");
-              await window.firebaseFirestore.updateDoc(userProfileDocRef, { country: userCountry });
-              localStorage.setItem('mercato_selected_country', userCountry);
-            }
-          } else {
-            userCountry = 'SA'; 
-            console.log("home-appliances: User profile does not exist. Creating with default country:", userCountry);
-            await window.firebaseFirestore.setDoc(userProfileDocRef, {
-              email: user.email || 'anonymous@mercato.com', 
-              createdAt: window.firebaseFirestore.serverTimestamp(),
-              country: userCountry,
-              name: ''
-            });
-            localStorage.setItem('mercato_selected_country', userCountry);
-          }
-        } catch (error) {
-          console.error("home-appliances: Error fetching/setting user country:", error);
-          userCountry = localStorage.getItem('mercato_selected_country') || 'SA'; 
-          localStorage.setItem('mercato_selected_country', userCountry);
-        }
-      }
-      console.log("home-appliances: Final user country resolved for rendering:", userCountry);
-      userDataToPass.country = userCountry; 
-      return userDataToPass; 
-    }
 
     window.handleSignOut = async () => {
       try {
@@ -180,12 +127,15 @@
       font-family: 'Cairo', sans-serif;
       background: #0F1A2A; /* Fixed dark background */
       color: #F8F8F8; /* Light primary text color */
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
       line-height: 1.6;
       text-align: right;
       font-size: 0.625rem; /* ~78% of 0.8rem, effectively scaling down other elements */
+
+      /* New: Make body the flex container for fixed header/footer and scrollable content */
+      display: flex;
+      flex-direction: column;
+      height: 100vh; /* Full viewport height */
+      overflow: hidden; /* Prevent body scroll, let inner content scroll */
     }
 
     /* Tailwind font sizes - to keep text sizes appropriate */
@@ -243,6 +193,10 @@
     .header-bg {
       background: #0B141F;
       border-bottom: 1px solid rgba(212, 175, 55, 0.5);
+      /* New: Make header sticky */
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
     /* Gold-accented buttons */
@@ -319,7 +273,7 @@
     }
     .skeleton-card-image {
         width: 100%;
-        height: 70px;
+        height: 180px; /* Increased height for skeleton */
         background: #34495E;
     }
     .skeleton-card-info {
@@ -373,7 +327,7 @@
       box-shadow: 0 10.8px 27px rgba(0, 0, 0, 0.4), 0 4.8px 12px rgba(0, 0, 0, 0.3); /* 18*0.6=10.8; 45*0.6=27; 8*0.6=4.8; 20*0.6=12 */
     }
     .product-card .product-image {
-        height: 100px; /* Increased height for better look */
+        height: 180px; /* NEW: Increased height for better look (from 100px) */
     }
     .product-card .badge {
         top: 9px; /* 5 * 0.6 = 3; rounded-full */
@@ -489,24 +443,19 @@
     .custom-modal-content .hover:bg-[#C29B27]:hover { background-color: #C29B27; }
   </style>
 </head>
-<body class="font-cairo antialiased overflow-x-hidden">
+<body class="font-cairo antialiased">
 
-  <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KPJ7ZG4R"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-  <!-- End Google Tag Manager (noscript) -->
-
-  <div id="root" class="flex-grow flex flex-col">
-    <!-- Initial Loading Screen (hidden when app is loaded) -->
+  <div id="root" class="flex flex-col min-h-screen">
     <div id="initial-loading" class="flex flex-col items-center justify-center min-h-screen">
         <div class="loading-spinner"></div>
         <p class="text-xl text-gray-300 mt-2">جاري التحقق من تسجيل الدخول...</p>
     </div>
   </div>
 
-  <!-- React core libraries -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script type="text/babel">
@@ -607,7 +556,7 @@
       };
 
       return (
-        <header className="header-bg text-white p-1.5 shadow-sm rounded-b-md relative z-50">
+        <header className="header-bg text-white p-1.5 shadow-sm rounded-b-md z-50">
           <div className="container mx-auto flex flex-wrap items-center justify-between py-1">
             {/* Logo and Title (right side of header overall) */}
             <div className="flex items-center space-x-1.5 space-x-reverse">
@@ -714,7 +663,7 @@
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://placehold.co/120x70/1F2E40/F8F8F8?text=صورة+غير+موجودة'; // Adjusted dimensions
+                e.target.src = 'https://placehold.co/120x180/1F2E40/F8F8F8?text=صورة+غير+موجودة'; // Adjusted dimensions for placeholder too
               }}
             />
             {/* Dynamic badge with luxury design */}
@@ -763,7 +712,7 @@
     );
 
     // --- Product Display Grid Component ---
-    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart }) => { // Removed onProductsFetched
+    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart }) => { 
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -800,7 +749,7 @@
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
             console.log("ProductDisplayGrid: Applied country filter: availableCountries array-contains ", userCountry);
           } else {
-             setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
+             setError('الرجاء اختيار دولتك لعرض المنتجات المناسبة.');
              setLoading(false);
              setProducts([]);
              console.log("ProductDisplayGrid: User country not selected or invalid. Skipping country filter and showing error.");
@@ -851,7 +800,7 @@
             fetchProducts();
         } else {
             setLoading(false);
-            setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
+            setError('الرجاء اختيار دولتك لعرض المنتجات المناسبة.');
             setProducts([]);
             console.log("ProductDisplayGrid: userCountry is null/empty. Not fetching products.");
         }
@@ -904,7 +853,9 @@
       const [isVisible, setIsVisible] = useState(false);
 
       const toggleVisibility = () => {
-        if (window.pageYOffset > 300) {
+        // Check scroll position of the main scrollable container, not window
+        const mainContent = document.querySelector('.main-scroll-content');
+        if (mainContent && mainContent.scrollTop > 300) {
           setIsVisible(true);
         } else {
           setIsVisible(false);
@@ -912,15 +863,21 @@
       };
 
       const scrollToTop = () => {
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
+        const mainContent = document.querySelector('.main-scroll-content');
+        if (mainContent) {
+          mainContent.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }
       };
 
       useEffect(() => {
-        window.addEventListener('scroll', toggleVisibility);
-        return () => window.removeEventListener('scroll', toggleVisibility);
+        const mainContent = document.querySelector('.main-scroll-content');
+        if (mainContent) {
+          mainContent.addEventListener('scroll', toggleVisibility);
+          return () => mainContent.removeEventListener('scroll', toggleVisibility);
+        }
       }, []);
 
       return (
@@ -937,7 +894,7 @@
     // --- Footer Component ---
     const Footer = () => {
       return (
-        <footer className="bg-[#0B141F] text-white py-6 px-1.5 mt-10 rounded-t-md shadow-inner-dark relative z-30">
+        <footer className="bg-[#0B141F] text-white py-6 px-1.5 mt-10 rounded-t-md shadow-inner-dark z-30">
           <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-2.5 text-center md:text-right">
             {/* Contact Information */}
             <div className="animate-fade-in-up">
@@ -998,7 +955,7 @@
                   className="text-gray-400 hover:text-[#D4AF37] transition-colors transform hover:scale-110 duration-300"
                   aria-label="Instagram"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucude-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
                 </a>
                 <a
                   href="https://t.me/mercato00"
@@ -1025,9 +982,67 @@
       const [currentSearchTerm, setCurrentSearchTerm] = useState('');
       const [sortBy, setSortBy] = useState('none');
       const [sortOrder, setSortOrder] = useState('asc');
-      // State for the custom modal
       const [modalInfo, setModalInfo] = useState(null);
-      // Removed productFetchStatus and productsCount states
+      
+      // NEW: State for user country, initialized from localStorage or default 'SA'
+      const [userCountry, setUserCountry] = useState(() => localStorage.getItem('mercato_selected_country') || 'SA');
+
+      // NEW: Listen for real-time updates to user profile document
+      useEffect(() => {
+        let unsubscribeProfile = () => {};
+        if (currentUser && currentUser.uid && window.firebaseFirestore) {
+          const dbInstance = window.firebaseFirestore.getFirestore();
+          const userProfileDocRef = window.firebaseFirestore.doc(
+            dbInstance,
+            'artifacts',
+            window.mercatoAppId,
+            'users',
+            currentUser.uid,
+            'userProfiles',
+            'profile'
+          );
+
+          console.log("App: Setting up onSnapshot for user profile at:", userProfileDocRef.path);
+          unsubscribeProfile = window.firebaseFirestore.onSnapshot(userProfileDocRef, async (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              const fetchedCountry = data.country || 'SA';
+              if (fetchedCountry !== userCountry) {
+                console.log("App: User country changed in Firestore:", fetchedCountry);
+                setUserCountry(fetchedCountry);
+                localStorage.setItem('mercato_selected_country', fetchedCountry);
+              }
+            } else {
+              // Profile doesn't exist, create it with default country
+              console.log("App: User profile does not exist. Creating with default country: SA");
+              const defaultCountry = 'SA';
+              await window.firebaseFirestore.setDoc(userProfileDocRef, {
+                email: currentUser.email || 'anonymous@mercato.com',
+                createdAt: window.firebaseFirestore.serverTimestamp(),
+                country: defaultCountry,
+                name: ''
+              });
+              setUserCountry(defaultCountry);
+              localStorage.setItem('mercato_selected_country', defaultCountry);
+            }
+          }, (error) => {
+            console.error("App: Error listening to user profile:", error);
+          });
+        }
+
+        // Cleanup listener on component unmount or user change
+        return () => unsubscribeProfile();
+      }, [currentUser]); // Re-run if currentUser changes
+
+      // Mapping country codes to full names for display
+      const countryNames = {
+          'SA': 'المملكة العربية السعودية',
+          'KW': 'الكويت',
+          'EG': 'مصر',
+          // أضف المزيد من الدول هنا حسب الحاجة
+      };
+      const displayedCountryName = countryNames[userCountry] || 'غير محدد';
+      console.log("App: Rendering with effectiveUserCountryCode:", userCountry, "and displayed as:", displayedCountryName);
 
       // Function to display a custom modal (replaces alert/confirm)
       const showModal = useCallback((title, message, isError = false) => {
@@ -1055,6 +1070,45 @@
         } else {
           setSortBy('none');
           setSortOrder('asc');
+        }
+      };
+
+      // NEW: Function to handle country change from the select input
+      const handleCountryChange = async (e) => {
+        const newCountryCode = e.target.value;
+        if (!currentUser || !currentUser.uid) {
+            showModal('خطأ في المصادقة', 'الرجاء تسجيل الدخول لتغيير الدولة.', true);
+            return;
+        }
+        if (!window.firebaseFirestore) {
+            showModal('خطأ في تهيئة Firebase', 'خدمات قاعدة البيانات غير متوفرة حاليًا.', true);
+            return;
+        }
+        
+        try {
+            const dbInstance = window.firebaseFirestore.getFirestore();
+            const userProfileDocRef = window.firebaseFirestore.doc(
+                dbInstance,
+                'artifacts',
+                window.mercatoAppId,
+                'users',
+                currentUser.uid,
+                'userProfiles',
+                'profile'
+            );
+            
+            // Update Firestore first
+            await window.firebaseFirestore.updateDoc(userProfileDocRef, { country: newCountryCode });
+            
+            // Update local state and localStorage (onSnapshot will also pick this up, but explicit update is faster)
+            setUserCountry(newCountryCode);
+            localStorage.setItem('mercato_selected_country', newCountryCode);
+            showModal('تم التغيير!', `تم تغيير دولتك إلى ${countryNames[newCountryCode] || newCountryCode}.`);
+            console.log("App: Country updated to:", newCountryCode);
+
+        } catch (error) {
+            console.error("Error updating user country:", error);
+            showModal('خطأ في تغيير الدولة', `تعذر تحديث الدولة: ${error.message}`, true);
         }
       };
 
@@ -1123,69 +1177,75 @@
           }
       }, [currentUser, showModal]); 
 
-      const effectiveUserCountryCode = currentUser?.country || 'SA'; 
-
-      // New: Mapping country codes to full names for display
-      const countryNames = {
-          'SA': 'المملكة العربية السعودية',
-          'KW': 'الكويت',
-          'EG': 'مصر',
-          // أضف المزيد من الدول هنا حسب الحاجة
-          // يمكنك استخدام مفتاح 'default' أو ترك 'غير محدد' لغير المطابقة
-      };
-      const displayedCountryName = countryNames[effectiveUserCountryCode] || 'غير محدد';
-      console.log("App: Rendering with effectiveUserCountryCode:", effectiveUserCountryCode, "and displayed as:", displayedCountryName);
-
 
       return (
-        <div dir="rtl" className="flex-grow flex-col">
+        <div dir="rtl" className="flex flex-col min-h-screen">
           <Header pageTitle="أدوات منزلية" currentUser={currentUser} />
           
-          <main className="container mx-auto my-10 px-2.5 relative z-30 flex-grow">
-            <h2 className="text-4xl font-extrabold text-[#F8F8F8] text-center mb-6 mt-12 animate-fade-in-up">
-              منتجات قسم الأدوات المنزلية
-            </h2>
+          {/* Main scrollable content area */}
+          <div className="flex-grow overflow-y-auto main-scroll-content">
+            <main className="container mx-auto my-10 px-2.5 relative z-30">
+                <h2 className="text-4xl font-extrabold text-[#F8F8F8] text-center mb-6 mt-12 animate-fade-in-up">
+                منتجات قسم الأدوات المنزلية
+                </h2>
 
-            {/* Updated: Display the effective user country name, removed fetch status */}
-            <div className="text-center text-sm text-[#5A7D9D] mb-4">
-                البلد الحالي للمستخدم: <span className="font-bold text-[#D4AF37]">{displayedCountryName}</span>
-                <br/>
-                (لتغيير البلد، يرجى زيارة <a href="profile.html" className="underline text-[#D4AF37] hover:text-white">صفحة الملف الشخصي</a>)
-            </div>
-
-            {/* Sorting controls */}
-            <div className="flex justify-end mb-4">
-              <div className="relative inline-block text-[#F8F8F8]">
-                <select
-                  onChange={handleSortChange}
-                  value={`${sortBy}_${sortOrder}`}
-                  className="block appearance-none w-full bg-[#1A2C42] border border-[#5A7D9D] rounded-md py-1.5 px-3 pr-6 leading-tight focus:outline-none focus:bg-[#1A2C42] focus:border-[#D4AF37] shadow-sm transition-all duration-200 text-xs"
-                >
-                  <option value="none_asc">الترتيب الافتراضي</option>
-                  <option value="price_asc">السعر: من الأقل للأعلى</option>
-                  <option value="price_desc">السعر: من الأعلى للأقل</option>
-                  <option value="name_asc">الاسم: أ-ي</option>
-                  <option value="name_desc">الاسم: ي-أ</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
-                  <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
+                {/* Updated: Display and allow change of user country */}
+                <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-4 md:space-x-reverse text-sm text-[#5A7D9D] mb-4">
+                    <div className="flex items-center space-x-1.5 space-x-reverse">
+                        <span className="font-bold">البلد الحالي:</span>
+                        <span className="font-bold text-[#D4AF37]">{displayedCountryName}</span>
+                    </div>
+                    <div className="relative inline-block text-[#F8F8F8] z-20"> {/* Higher z-index for dropdown */}
+                        <select
+                            onChange={handleCountryChange}
+                            value={userCountry}
+                            className="block appearance-none w-auto bg-[#1A2C42] border border-[#5A7D9D] rounded-md py-1.5 px-3 pr-6 leading-tight focus:outline-none focus:bg-[#1A2C42] focus:border-[#D4AF37] shadow-sm transition-all duration-200 text-xs"
+                        >
+                            <option value="SA">المملكة العربية السعودية</option>
+                            <option value="EG">مصر</option>
+                            <option value="KW">الكويت</option>
+                            {/* أضف المزيد من الدول هنا */}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
+                            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
 
-            <ProductDisplayGrid 
-                searchTerm={currentSearchTerm} 
-                categoryCode="homeappliances" 
-                sortBy={sortBy} 
-                sortOrder={sortOrder} 
-                userCountry={effectiveUserCountryCode} // Pass the raw code to the grid for filtering
-                // Removed onProductsFetched as it's no longer needed for display
-            />
-          </main>
+
+                {/* Sorting controls */}
+                <div className="flex justify-end mb-4">
+                <div className="relative inline-block text-[#F8F8F8]">
+                    <select
+                    onChange={handleSortChange}
+                    value={`${sortBy}_${sortOrder}`}
+                    className="block appearance-none w-full bg-[#1A2C42] border border-[#5A7D9D] rounded-md py-1.5 px-3 pr-6 leading-tight focus:outline-none focus:bg-[#1A2C42] focus:border-[#D4AF37] shadow-sm transition-all duration-200 text-xs"
+                    >
+                    <option value="none_asc">الترتيب الافتراضي</option>
+                    <option value="price_asc">السعر: من الأقل للأعلى</option>
+                    <option value="price_desc">السعر: من الأعلى للأقل</option>
+                    <option value="name_asc">الاسم: أ-ي</option>
+                    <option value="name_desc">الاسم: ي-أ</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
+                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
+                    </div>
+                </div>
+                </div>
+
+                <ProductDisplayGrid 
+                    searchTerm={currentSearchTerm} 
+                    categoryCode="homeappliances" 
+                    sortBy={sortBy} 
+                    sortOrder={sortOrder} 
+                    userCountry={userCountry} // Pass the state variable
+                    onAddToCart={handleAddToCart}
+                />
+            </main>
+            <Footer /> {/* Footer is now inside the scrollable content */}
+          </div>
 
           <ScrollToTopButton />
-
-          <Footer />
 
           {/* Render CustomModal if modalInfo state is set */}
           {modalInfo && <CustomModal {...modalInfo} />}
