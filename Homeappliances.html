@@ -4,17 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>أدوات منزلية – ميركاتو | تسوق بذكاء، عش أفضل</title>
+  <!-- Favicon -->
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
 
+  <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-KPJ7ZG4R');</script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Google Fonts for Cairo -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;800;900&display=swap" rel="stylesheet" />
 
+  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -485,15 +492,20 @@
 </head>
 <body class="font-cairo antialiased overflow-x-hidden">
 
+  <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KPJ7ZG4R"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
   <div id="root" class="flex-grow flex flex-col">
+    <!-- Initial Loading Screen (hidden when app is loaded) -->
     <div id="initial-loading" class="flex flex-col items-center justify-center min-h-screen">
         <div class="loading-spinner"></div>
         <p class="text-xl text-gray-300 mt-2">جاري التحقق من تسجيل الدخول...</p>
     </div>
   </div>
 
+  <!-- React core libraries -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -774,26 +786,35 @@
           // The public products collection path: artifacts/{appId}/public/data/products
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
           let productsQuery = productsRef;
+          
+          console.log("ProductDisplayGrid: Base products collection path:", productsRef.path);
+
 
           // Apply category filter if provided
           if (categoryCode) {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
-            console.log("ProductDisplayGrid: Applied category filter:", categoryCode);
+            console.log("ProductDisplayGrid: Applied category filter: category == ", categoryCode);
           }
 
-          // Apply country filter. Only show error if country is explicitly 'اختر الدولة' or 'لم يتم الاختيار' AND there are no products.
-          // We will *not* stop the query if userCountry is undefined/null, instead Firebase will try to fetch without country filter.
+          // Apply country filter.
+          // IMPORTANT: The `availableCountries` field in your Firestore documents must be an ARRAY.
+          // The bot is configured to save it as an array.
           if (userCountry && userCountry !== 'اختر الدولة' && userCountry !== 'لم يتم الاختيار') {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
-            console.log("ProductDisplayGrid: Applied country filter:", userCountry);
+            console.log("ProductDisplayGrid: Applied country filter: availableCountries array-contains ", userCountry);
           } else {
-             // If userCountry is not explicitly chosen, proceed without country filter for now to see if products appear.
-             // The error message will only show if no products are found after fetch.
-             console.log("ProductDisplayGrid: No specific country selected or invalid. Will attempt to fetch without country filter.");
+             // If userCountry is not explicitly chosen or is default/invalid, we cannot query by country
+             // Display an error and clear products if country is required and not set
+             setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
+             setLoading(false);
+             setProducts([]);
+             console.log("ProductDisplayGrid: User country not selected or invalid. Skipping country filter and showing error.");
+             return; // Stop fetching if country is missing and required for display
           }
 
+
           try {
-            console.log("ProductDisplayGrid: Attempting to get documents...");
+            console.log("ProductDisplayGrid: Attempting to get documents with query...");
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             console.log("ProductDisplayGrid: Fetched", fetchedProducts.length, "products.");
@@ -820,10 +841,8 @@
             });
 
             setProducts(sortedProducts);
-            if (sortedProducts.length === 0 && (userCountry === 'اختر الدولة' || userCountry === 'لم يتم الاختيار')) {
-                 setError('الرجاء اختيار دولتك لعرض المنتجات المناسبة في هذا القسم.');
-            } else if (sortedProducts.length === 0) {
-                 setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة.');
+            if (sortedProducts.length === 0) {
+                 setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة!');
             }
           } catch (err) {
             console.error('ProductDisplayGrid: Error fetching products from Firestore:', err);
@@ -845,7 +864,7 @@
         );
       }
 
-      if (error && products.length === 0) { // Only show error if no products are displayed
+      if (error && products.length === 0) { // Only show error if no products are displayed and there's an error state
         return (
           <div className="text-center p-3.5 bg-red-50 border border-red-300 text-red-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs">
             <p className="text-base font-bold mb-1.5">عفواً، حدث خطأ!</p>
@@ -857,8 +876,8 @@
         );
       }
       
-      // If there's an error but we have products (e.g., partial load or error happened after some products were fetched), still show products.
-      if (products.length === 0) { // This message is more generic if no products were found, regardless of error status
+      // If there are no products after loading (and no specific error, or error implies no products found)
+      if (products.length === 0) { 
         return (
           <div className="text-center p-3.5 bg-gray-50 border border-gray-300 text-gray-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs flex flex-col items-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-package-x text-gray-500 mb-1.5"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v6a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 14z"/><path d="m3 7 9 5 9-5"/><path d="m3 14 9 5 9-5"/><path d="m8 8 8 8"/><path d="m16 8-8 8"/></svg>
@@ -1060,6 +1079,8 @@
                   currentUser.uid,
                   'cartItems' // This is a collection of cart items
               );
+              console.log("Adding to cart: Cart collection path:", cartItemsCollectionRef.path);
+
 
               // Check if the item already exists in the cart for the current user
               const q = window.firebaseFirestore.query(cartItemsCollectionRef, window.firebaseFirestore.where('productId', '==', product.id));
@@ -1137,7 +1158,7 @@
 
             <ProductDisplayGrid 
                 searchTerm={currentSearchTerm} 
-                categoryCode="homeappliances" /* Changed from "d3" to "homeappliances" based on bot mapping */
+                categoryCode="homeappliances" /* This must match the 'category' field in your Firestore products */
                 sortBy={sortBy} 
                 sortOrder={sortOrder} 
                 userCountry={effectiveUserCountry}
