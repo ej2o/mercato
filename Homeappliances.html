@@ -4,28 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>أدوات منزلية – ميركاتو | تسوق بذكاء، عش أفضل</title>
-  <!-- Favicon -->
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
 
-  <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-KPJ7ZG4R');</script>
-  <!-- End Google Tag Manager -->
-
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts for Cairo -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;800;900&display=swap" rel="stylesheet" />
 
-  <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, serverTimestamp, addDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, serverTimestamp, addDoc, updateDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // Firebase configuration (preferably from Canvas environment variables)
     // IMPORTANT: Make sure this `userProvidedFirebaseConfig` matches your actual Firebase project settings.
@@ -62,7 +55,8 @@
       serverTimestamp: serverTimestamp,
       addDoc: addDoc,
       updateDoc: updateDoc,
-      onSnapshot: onSnapshot // Added for real-time cart updates in Header
+      onSnapshot: onSnapshot,
+      setDoc: setDoc // Added setDoc for creating user profile if not exists
     };
     window.firebaseAuthInstance = auth; // Make auth instance available for global signOut function
 
@@ -71,92 +65,87 @@
     async function initializeAuthForCanvas() {
       try {
         if (typeof __initial_auth_token !== 'undefined') {
-          // Sign in with custom token provided by Canvas environment
           await signInWithCustomToken(auth, __initial_auth_token);
+          console.log("Firebase: Signed in with custom token.");
         } else {
-          // Fallback to anonymous sign-in if no custom token (e.g., local development)
           await signInAnonymously(auth);
+          console.log("Firebase: Signed in anonymously.");
         }
-        console.log("Firebase authentication initialized.");
       } catch (error) {
-        console.error("خطأ في تهيئة مصادقة Firebase:", error);
+        console.error("Firebase Auth Error:", error);
       }
     }
     initializeAuthForCanvas();
 
-    // Listen for authentication state changes
     onAuthStateChanged(auth, (user) => {
-      // Set currentUserId (either authenticated UID or a random ID for unauthenticated users)
       currentUserId = user?.uid || crypto.randomUUID();
-      window.mercatoUserId = currentUserId; // Make it globally available
+      window.mercatoUserId = currentUserId;
+      console.log("Firebase Auth State Changed. Current User ID:", currentUserId);
 
       const initialLoadingScreen = document.getElementById('initial-loading');
       if (initialLoadingScreen) {
-        initialLoadingScreen.style.display = 'none'; // Hide loading screen once auth check is done
+        initialLoadingScreen.style.display = 'none';
       }
 
       if (!user) {
-        // If no user is logged in, redirect to login page
+        console.log("No user logged in. Redirecting to login.html...");
         window.location.href = 'login.html';
       } else {
-        // If user is logged in, fetch their country and then render the app
         fetchUserCountryAndRenderApp(user);
       }
     });
 
-    // Fetches user's selected country from Firestore profile
     async function fetchUserCountryAndRenderApp(user) {
-      let userCountry = 'SA'; // Default country if none is found or user is anonymous
-      // Ensure Firestore is initialized before trying to fetch
+      let userCountry = localStorage.getItem('mercato_selected_country') || 'SA'; // Prioritize localStorage, then default to SA
+      console.log("Initial userCountry (from localStorage or default):", userCountry);
+
       if (user && window.firebaseFirestore && window.firebaseFirestore.getFirestore) {
         try {
           const dbInstance = window.firebaseFirestore.getFirestore();
-          // User profile document path: artifacts/{appId}/users/{userId}/userProfiles/profile
-          // This path ensures user data is private to them in Canvas environment
           const userProfileDocRef = window.firebaseFirestore.doc(dbInstance, 'artifacts', window.mercatoAppId, 'users', user.uid, 'userProfiles', 'profile');
-          const userDocSnap = await window.firebaseFirestore.getDoc(userProfileDocRef); // Use userProfileDocRef
+          console.log("Fetching user profile from:", userProfileDocRef.path);
+          const userDocSnap = await window.firebaseFirestore.getDoc(userProfileDocRef);
 
           if (userDocSnap.exists()) {
             const data = userDocSnap.data();
             if (data.country) {
               userCountry = data.country;
-              // Store country in localStorage for easy access across pages
               localStorage.setItem('mercato_selected_country', userCountry);
+              console.log("User country fetched from Firestore:", userCountry);
+            } else {
+              console.log("User profile exists, but no country field. Using default/localStorage country.");
+              // If profile exists but no country, set default country in Firestore
+              await window.firebaseFirestore.updateDoc(userProfileDocRef, { country: userCountry });
             }
           } else {
+            console.log("User profile does not exist. Creating with default country:", userCountry);
             // If profile doesn't exist, create a basic one with default country
             await window.firebaseFirestore.setDoc(userProfileDocRef, {
-              email: user.email,
+              email: user.email || 'anonymous@mercato.com', // Use actual email if available, else placeholder
               createdAt: window.firebaseFirestore.serverTimestamp(),
-              country: userCountry, // Set default country
+              country: userCountry,
               name: ''
-            }, { merge: true }); // Use merge: true to avoid overwriting existing fields
+            });
             localStorage.setItem('mercato_selected_country', userCountry);
           }
         } catch (error) {
-          console.error("حدث خطأ أثناء جلب دولة المستخدم أو إنشاء الملف الشخصي:", error);
+          console.error("Error fetching/setting user country:", error);
           // Fallback to default country if fetching fails
           localStorage.setItem('mercato_selected_country', userCountry);
         }
-      } else if (!user) {
-        // If user is not authenticated (e.g., anonymous, but we redirect), use localStorage if available
-        userCountry = localStorage.getItem('mercato_selected_country') || 'SA';
       }
-
-      // Render the React app with the fetched/default user and country
+      console.log("Final user country for rendering app:", userCountry);
       if (window.renderApp) {
         window.renderApp({ ...user, country: userCountry });
       }
     }
 
-    // Global function to handle user sign out
     window.handleSignOut = async () => {
       try {
-        await signOut(window.firebaseAuthInstance); // Use the globally exposed auth instance
-        window.location.href = 'login.html'; // Redirect to login page after sign out
+        await signOut(window.firebaseAuthInstance);
+        window.location.href = 'login.html';
       } catch (error) {
-        console.error("حدث خطأ أثناء تسجيل الخروج: ", error);
-        // Display a custom modal for sign-out errors (replaces alert)
+        console.error("Sign Out Error: ", error);
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]';
         modal.innerHTML = `
@@ -496,20 +485,15 @@
 </head>
 <body class="font-cairo antialiased overflow-x-hidden">
 
-  <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KPJ7ZG4R"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-  <!-- End Google Tag Manager (noscript) -->
-
   <div id="root" class="flex-grow flex flex-col">
-    <!-- Initial Loading Screen (hidden when app is loaded) -->
     <div id="initial-loading" class="flex flex-col items-center justify-center min-h-screen">
         <div class="loading-spinner"></div>
         <p class="text-xl text-gray-300 mt-2">جاري التحقق من تسجيل الدخول...</p>
     </div>
   </div>
 
-  <!-- React core libraries -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -545,8 +529,8 @@
         <div className={`custom-modal-overlay ${showModal ? 'show' : ''}`}>
           <div className={`custom-modal-content ${showModal ? 'show' : ''}`}>
             <div className={`p-4 rounded-lg border ${bgColorClass} ${textColorClass} mb-3`}>
-              <h3 className="text-xl font-bold mb-2">{title}</h3>
-              <p className="text-sm">{message}</p>
+              <h3 className="text-xl font-bold mb-2">${title}</h3>
+              <p className="text-sm">${message}</p>
             </div>
             <button
               onClick={handleClose}
@@ -585,6 +569,7 @@
                     currentUser.uid,
                     'cartItems'
                 );
+                console.log("Header: Listening to cart changes at:", userCartCollectionRef.path);
 
                 // Use onSnapshot to get real-time updates for the collection
                 unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartCollectionRef, (snapshot) => {
@@ -594,11 +579,13 @@
                         totalCount += itemData.quantity || 0;
                     });
                     setCartItemCount(totalCount);
+                    console.log("Header: Cart items updated. Total:", totalCount);
                 }, (error) => {
-                    console.error("خطأ في جلب عناصر سلة التسوق في الرأس:", error);
+                    console.error("Header: Error fetching cart items:", error);
                 });
             } else {
                 setCartItemCount(0); // Reset cart count if user logs out or Firebase isn't ready
+                console.log("Header: Not listening to cart (no user or Firebase not ready).");
             }
 
             return () => unsubscribeCart(); // Cleanup listener on component unmount
@@ -774,40 +761,49 @@
         const fetchProducts = async () => {
           setLoading(true);
           setError(null);
+          console.log("ProductDisplayGrid: Starting product fetch for category:", categoryCode, "and country:", userCountry);
 
           if (!window.firebaseFirestore || !window.firebaseFirestore.getFirestore) {
-              setError("Firebase Firestore is not initialized. Please ensure Firebase config is correctly set.");
+              setError("خطأ: Firebase Firestore غير مهيأ بشكل صحيح.");
               setLoading(false);
+              console.error("Firebase Firestore is not initialized.");
               return;
           }
 
           const dbInstance = window.firebaseFirestore.getFirestore();
-          // Product collection path: artifacts/{appId}/public/data/products
+          // The public products collection path: artifacts/{appId}/public/data/products
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
           let productsQuery = productsRef;
 
+          // Apply category filter if provided
           if (categoryCode) {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
+            console.log("ProductDisplayGrid: Applied category filter:", categoryCode);
           }
 
+          // Apply country filter. Only show error if country is explicitly 'اختر الدولة' or 'لم يتم الاختيار' AND there are no products.
+          // We will *not* stop the query if userCountry is undefined/null, instead Firebase will try to fetch without country filter.
           if (userCountry && userCountry !== 'اختر الدولة' && userCountry !== 'لم يتم الاختيار') {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
+            console.log("ProductDisplayGrid: Applied country filter:", userCountry);
           } else {
-             setLoading(false);
-             setProducts([]);
-             setError('الرجاء اختيار دولتك لعرض المنتجات المناسبة في هذا القسم.');
-             return;
+             // If userCountry is not explicitly chosen, proceed without country filter for now to see if products appear.
+             // The error message will only show if no products are found after fetch.
+             console.log("ProductDisplayGrid: No specific country selected or invalid. Will attempt to fetch without country filter.");
           }
 
           try {
+            console.log("ProductDisplayGrid: Attempting to get documents...");
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            console.log("ProductDisplayGrid: Fetched", fetchedProducts.length, "products.");
 
             // Client-side search filtering
             if (searchTerm) {
               fetchedProducts = fetchedProducts.filter(product =>
                 product.name.toLowerCase().includes(searchTerm.toLowerCase())
               );
+              console.log("ProductDisplayGrid: Products after search filter:", fetchedProducts.length);
             }
 
             // Client-side sorting
@@ -824,8 +820,13 @@
             });
 
             setProducts(sortedProducts);
+            if (sortedProducts.length === 0 && (userCountry === 'اختر الدولة' || userCountry === 'لم يتم الاختيار')) {
+                 setError('الرجاء اختيار دولتك لعرض المنتجات المناسبة في هذا القسم.');
+            } else if (sortedProducts.length === 0) {
+                 setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة.');
+            }
           } catch (err) {
-            console.error('حدث خطأ أثناء جلب المنتجات من Firestore:', err);
+            console.error('ProductDisplayGrid: Error fetching products from Firestore:', err);
             setError('تعذر تحميل المنتجات حاليًا. يرجى المحاولة مرة أخرى لاحقًا.');
           } finally {
             setLoading(false);
@@ -844,7 +845,7 @@
         );
       }
 
-      if (error) {
+      if (error && products.length === 0) { // Only show error if no products are displayed
         return (
           <div className="text-center p-3.5 bg-red-50 border border-red-300 text-red-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs">
             <p className="text-base font-bold mb-1.5">عفواً، حدث خطأ!</p>
@@ -855,8 +856,9 @@
           </div>
         );
       }
-
-      if (products.length === 0) {
+      
+      // If there's an error but we have products (e.g., partial load or error happened after some products were fetched), still show products.
+      if (products.length === 0) { // This message is more generic if no products were found, regardless of error status
         return (
           <div className="text-center p-3.5 bg-gray-50 border border-gray-300 text-gray-700 rounded-md shadow-sm my-3.5 mx-auto max-w-xs flex flex-col items-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-package-x text-gray-500 mb-1.5"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v6a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 14z"/><path d="m3 7 9 5 9-5"/><path d="m3 14 9 5 9-5"/><path d="m8 8 8 8"/><path d="m16 8-8 8"/></svg>
@@ -1061,6 +1063,7 @@
 
               // Check if the item already exists in the cart for the current user
               const q = window.firebaseFirestore.query(cartItemsCollectionRef, window.firebaseFirestore.where('productId', '==', product.id));
+              console.log("Adding to cart: Checking for existing item with productId:", product.id);
               const querySnapshot = await window.firebaseFirestore.getDocs(q);
 
               if (!querySnapshot.empty) {
@@ -1075,6 +1078,7 @@
                       }
                   );
                   showModal('تم التحديث!', `تم تحديث كمية المنتج "${product.name}" في سلتك إلى ${currentQuantity + 1}.`);
+                  console.log("Cart: Updated quantity for existing product:", product.name);
               } else {
                   // If item does not exist, add it as a new document to the cartItems collection
                   await window.firebaseFirestore.addDoc(cartItemsCollectionRef, {
@@ -1088,6 +1092,7 @@
                       userId: currentUser.uid // Store userId for ownership
                   });
                   showModal('تمت الإضافة بنجاح!', `تم إضافة المنتج "${product.name}" إلى سلتك.`);
+                  console.log("Cart: Added new product:", product.name);
               }
               // Optional: navigate to cart page after adding/updating
               // window.location.href = 'cart.html';
@@ -1099,6 +1104,7 @@
       }, [currentUser, showModal]); // Include showModal in dependencies for useCallback
 
       const effectiveUserCountry = currentUser?.country || 'SA';
+      console.log("App: Rendering with effectiveUserCountry:", effectiveUserCountry);
 
       return (
         <div dir="rtl" className="flex-grow flex-col">
