@@ -763,7 +763,7 @@
     );
 
     // --- Product Display Grid Component ---
-    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart, onProductsFetched }) => {
+    const ProductDisplayGrid = ({ categoryCode, userCountry, searchTerm = '', sortBy = 'none', sortOrder = 'asc', onAddToCart }) => { // Removed onProductsFetched
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -774,34 +774,28 @@
           setError(null);
           
           console.log("ProductDisplayGrid: Starting product fetch for category:", categoryCode, "and country:", userCountry);
-          console.log("ProductDisplayGrid: Using App ID:", window.mercatoAppId); // Log the actual app ID being used
+          console.log("ProductDisplayGrid: Using App ID:", window.mercatoAppId); 
 
           if (!window.firebaseFirestore || !window.firebaseFirestore.getFirestore) {
               setError("خطأ: Firebase Firestore غير مهيأ بشكل صحيح.");
               setLoading(false);
               console.error("ProductDisplayGrid: Firebase Firestore is not initialized.");
-              onProductsFetched(0, "Firebase Not Initialized"); 
               return;
           }
 
           const dbInstance = window.firebaseFirestore.getFirestore();
           // The public products collection path: artifacts/{appId}/public/data/products
-          // IMPORTANT: Use window.mercatoAppId here
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
           let productsQuery = productsRef;
           
           console.log("ProductDisplayGrid: Base products collection path:", productsRef.path);
 
-          // --- DIAGNOSTIC STEP: Comment out filters one by one ---
-          // 1. Initial test: Fetch ALL products without any filters
-          // productsQuery = productsRef; // No filters initially
-
-          // 2. Test with Category filter only
+          // Apply Category filter
           productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
           console.log("ProductDisplayGrid: Applied category filter: category == ", categoryCode);
           
 
-          // 3. Test with Country filter only (ensure it's after the category filter if both are needed)
+          // Apply Country filter
           if (userCountry && userCountry !== 'اختر الدولة' && userCountry !== 'لم يتم الاختيار' && userCountry !== '') {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
             console.log("ProductDisplayGrid: Applied country filter: availableCountries array-contains ", userCountry);
@@ -810,10 +804,8 @@
              setLoading(false);
              setProducts([]);
              console.log("ProductDisplayGrid: User country not selected or invalid. Skipping country filter and showing error.");
-             onProductsFetched(0, "Country Not Selected/Invalid"); 
              return; 
           }
-          // --- END DIAGNOSTIC STEP ---
 
 
           try {
@@ -844,14 +836,12 @@
             });
 
             setProducts(sortedProducts);
-            onProductsFetched(sortedProducts.length, null); 
             if (sortedProducts.length === 0) {
                  setError('لا توجد منتجات حاليًا في هذا القسم أو لهذه الدولة!');
             }
           } catch (err) {
             console.error('ProductDisplayGrid: Error fetching products from Firestore:', err);
             setError('تعذر تحميل المنتجات حاليًا. يرجى المحاولة مرة أخرى لاحقًا.');
-            onProductsFetched(0, err.message || 'Error fetching'); 
           } finally {
             setLoading(false);
           }
@@ -864,9 +854,8 @@
             setError('الرجاء اختيار دولتك من صفحة الملف الشخصي لعرض المنتجات المناسبة.');
             setProducts([]);
             console.log("ProductDisplayGrid: userCountry is null/empty. Not fetching products.");
-            onProductsFetched(0, "Country Not Provided"); 
         }
-      }, [categoryCode, userCountry, searchTerm, sortBy, sortOrder, onProductsFetched]);
+      }, [categoryCode, userCountry, searchTerm, sortBy, sortOrder]);
 
 
       if (loading) {
@@ -1038,19 +1027,7 @@
       const [sortOrder, setSortOrder] = useState('asc');
       // State for the custom modal
       const [modalInfo, setModalInfo] = useState(null);
-      // New state to display product fetch status
-      const [productFetchStatus, setProductFetchStatus] = useState('جاري التحميل...');
-      const [productsCount, setProductsCount] = useState(0);
-
-      // Function to update product fetch status from child component
-      const handleProductsFetched = useCallback((count, errorMessage) => {
-          setProductsCount(count);
-          if (errorMessage) {
-              setProductFetchStatus(`خطأ: ${errorMessage}`);
-          } else {
-              setProductFetchStatus(`تم جلب ${count} منتج.`);
-          }
-      }, []);
+      // Removed productFetchStatus and productsCount states
 
       // Function to display a custom modal (replaces alert/confirm)
       const showModal = useCallback((title, message, isError = false) => {
@@ -1146,8 +1123,19 @@
           }
       }, [currentUser, showModal]); 
 
-      const effectiveUserCountry = currentUser?.country || 'SA'; 
-      console.log("App: Rendering with effectiveUserCountry:", effectiveUserCountry);
+      const effectiveUserCountryCode = currentUser?.country || 'SA'; 
+
+      // New: Mapping country codes to full names for display
+      const countryNames = {
+          'SA': 'المملكة العربية السعودية',
+          'KW': 'الكويت',
+          'EG': 'مصر',
+          // أضف المزيد من الدول هنا حسب الحاجة
+          // يمكنك استخدام مفتاح 'default' أو ترك 'غير محدد' لغير المطابقة
+      };
+      const displayedCountryName = countryNames[effectiveUserCountryCode] || 'غير محدد';
+      console.log("App: Rendering with effectiveUserCountryCode:", effectiveUserCountryCode, "and displayed as:", displayedCountryName);
+
 
       return (
         <div dir="rtl" className="flex-grow flex-col">
@@ -1158,11 +1146,9 @@
               منتجات قسم الأدوات المنزلية
             </h2>
 
-            {/* Debugging: Display the effective user country and product count */}
+            {/* Updated: Display the effective user country name, removed fetch status */}
             <div className="text-center text-sm text-[#5A7D9D] mb-4">
-                البلد الحالي للمستخدم: <span className="font-bold text-[#D4AF37]">{effectiveUserCountry || 'غير محدد'}</span>
-                <br/>
-                حالة جلب المنتجات: <span className="font-bold text-[#D4AF37]">{productFetchStatus}</span>
+                البلد الحالي للمستخدم: <span className="font-bold text-[#D4AF37]">{displayedCountryName}</span>
                 <br/>
                 (لتغيير البلد، يرجى زيارة <a href="profile.html" className="underline text-[#D4AF37] hover:text-white">صفحة الملف الشخصي</a>)
             </div>
@@ -1192,9 +1178,8 @@
                 categoryCode="homeappliances" 
                 sortBy={sortBy} 
                 sortOrder={sortOrder} 
-                userCountry={effectiveUserCountry}
-                onAddToCart={handleAddToCart}
-                onProductsFetched={handleProductsFetched} 
+                userCountry={effectiveUserCountryCode} // Pass the raw code to the grid for filtering
+                // Removed onProductsFetched as it's no longer needed for display
             />
           </main>
 
