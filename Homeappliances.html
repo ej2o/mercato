@@ -4,114 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>أدوات منزلية – ميركاتو | تسوق بذكاء، عش أفضل</title>
+  <!-- Favicon -->
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
 
+  <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-KPJ7ZG4R');</script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Google Fonts for Cairo -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;800;900&display=swap" rel="stylesheet" />
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, serverTimestamp, addDoc, updateDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    // Firebase configuration (IMPORTANT: Hardcoding project ID for maximum certainty)
-    const firebaseConfig = {
-      apiKey: "AIzaSyCuttEadee0V2YOZHmG53a2Rck7AvFCFEM",
-      authDomain: "mercato-2cf1d.firebaseapp.com",
-      projectId: "mercato-2cf1d", // HARDCODED FOR DIAGNOSIS
-      storageBucket: "mercato-2cf1d.firebasestorage.app",
-      messagingSenderId: "896887505927",
-      appId: "1:896887505927:web:6cb474409bdcfdb1e216a2",
-      measurementId: "G-4WNGK0W077"
-    };
-
-    // Use the hardcoded project ID for the app ID globally
-    window.mercatoAppId = firebaseConfig.projectId; 
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    window.firebaseApp = app;
-    window.firebaseAuth = auth;
-    // Expose necessary Firestore functions globally
-    window.firebaseFirestore = {
-      dbInstance: db,
-      getFirestore: getFirestore,
-      collection: collection,
-      query: query,
-      where: where,
-      getDocs: getDocs,
-      doc: doc,
-      getDoc: getDoc,
-      serverTimestamp: serverTimestamp,
-      addDoc: addDoc,
-      updateDoc: updateDoc,
-      onSnapshot: onSnapshot, // Expose onSnapshot
-      setDoc: setDoc 
-    };
-    window.firebaseAuthInstance = auth; 
-
-    async function initializeAuthForCanvas() {
-      try {
-        if (typeof __initial_auth_token !== 'undefined') {
-          await signInWithCustomToken(auth, __initial_auth_token);
-          console.log("Firebase: Signed in with custom token.");
-        } else {
-          await signInAnonymously(auth);
-          console.log("Firebase: Signed in anonymously.");
-        }
-      } catch (error) {
-        console.error("Firebase Auth Error:", error);
-      }
-    }
-    initializeAuthForCanvas();
-
-    onAuthStateChanged(auth, async (user) => { 
-      const initialLoadingScreen = document.getElementById('initial-loading');
-      if (initialLoadingScreen) {
-        initialLoadingScreen.style.display = 'none';
-      }
-
-      if (!user) {
-        console.log("Firebase Auth State Changed. No user logged in. Redirecting to login.html...");
-        window.location.href = 'login.html';
-      } else {
-        console.log("Firebase Auth State Changed. User UID:", user.uid);
-        // We will now fetch/listen to user country directly in the App component
-        if (window.renderApp) {
-          window.renderApp(user); // Pass raw user, country will be managed by App component
-        }
-      }
-    });
-
-    window.handleSignOut = async () => {
-      try {
-        await signOut(window.firebaseAuthInstance);
-        console.log("home-appliances: User signed out. Redirecting to login.html...");
-        window.location.href = 'login.html';
-      } catch (error) {
-        console.error("home-appliances: Sign Out Error: ", error);
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]';
-        modal.innerHTML = `
-          <div class="bg-white p-2 rounded-sm shadow-md text-center max-w-[150px]">
-            <h3 class="text-sm font-bold text-red-600 mb-2">خطأ في تسجيل الخروج</h3>
-            <p class="text-xs text-gray-700">${error.message || "حدث خطأ أثناء تسجيل الخروج. يرجى المحاولة مرة أخرى."}</p>
-            <button class="mt-2 bg-[#1A2C42] text-white px-2 py-1 text-xs rounded-sm hover:bg-gray-800 transition-colors" onclick="this.parentNode.parentNode.remove()">حسناً</button>
-          </div>
-        `;
-        document.body.appendChild(modal);
-      }
-    };
-  </script>
-
+  <!-- Custom Styles for Mercato Theme and Layout -->
   <style>
     /* New Luxury Color Palette (Permanent Night Mode): */
     /* Primary Dark: #1A2C42 (Deep Navy / Dark Blue) */
@@ -131,7 +41,7 @@
       text-align: right;
       font-size: 0.625rem; /* ~78% of 0.8rem, effectively scaling down other elements */
 
-      /* New: Make body the flex container for fixed header/footer and scrollable content */
+      /* NEW: Make body the flex container for fixed header/footer and scrollable content */
       display: flex;
       flex-direction: column;
       height: 100vh; /* Full viewport height */
@@ -193,7 +103,7 @@
     .header-bg {
       background: #0B141F;
       border-bottom: 1px solid rgba(212, 175, 55, 0.5);
-      /* New: Make header sticky */
+      /* Make header sticky */
       position: sticky;
       top: 0;
       z-index: 100;
@@ -327,7 +237,7 @@
       box-shadow: 0 10.8px 27px rgba(0, 0, 0, 0.4), 0 4.8px 12px rgba(0, 0, 0, 0.3); /* 18*0.6=10.8; 45*0.6=27; 8*0.6=4.8; 20*0.6=12 */
     }
     .product-card .product-image {
-        height: 180px; /* NEW: Increased height for better look (from 100px) */
+        height: 180px; /* Increased height for better look */
     }
     .product-card .badge {
         top: 9px; /* 5 * 0.6 = 3; rounded-full */
@@ -445,19 +355,130 @@
 </head>
 <body class="font-cairo antialiased">
 
+  <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KPJ7ZG4R"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
   <div id="root" class="flex flex-col min-h-screen">
+    <!-- Initial Loading Screen (hidden when app is loaded) -->
     <div id="initial-loading" class="flex flex-col items-center justify-center min-h-screen">
         <div class="loading-spinner"></div>
         <p class="text-xl text-gray-300 mt-2">جاري التحقق من تسجيل الدخول...</p>
     </div>
   </div>
 
+  <!-- React core libraries -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <script type="module">
+    // Re-import Firebase SDKs within the module script
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, serverTimestamp, addDoc, updateDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Firebase configuration - Hardcoding project ID for maximum certainty during debugging
+    const firebaseConfig = {
+      apiKey: "AIzaSyCuttEadee0V2YOZHmG53a2Rck7AvFCFEM",
+      authDomain: "mercato-2cf1d.firebaseapp.com",
+      projectId: "mercato-2cf1d", // Hardcoded project ID
+      storageBucket: "mercato-2cf1d.firebasestorage.app",
+      messagingSenderId: "896887505927",
+      appId: "1:896887505927:web:6cb474409bdcfdb1e216a2",
+      measurementId: "G-4WNGK0W077"
+    };
+
+    // Expose the hardcoded project ID globally for use in React components
+    window.mercatoAppId = firebaseConfig.projectId; 
+
+    // Initialize Firebase app and services
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Expose Firebase instances and functions globally for React components
+    window.firebaseApp = app;
+    window.firebaseAuth = auth;
+    window.firebaseFirestore = {
+      dbInstance: db,
+      getFirestore: getFirestore,
+      collection: collection,
+      query: query,
+      where: where,
+      getDocs: getDocs,
+      doc: doc,
+      getDoc: getDoc,
+      serverTimestamp: serverTimestamp,
+      addDoc: addDoc,
+      updateDoc: updateDoc,
+      onSnapshot: onSnapshot, 
+      setDoc: setDoc 
+    };
+    window.firebaseAuthInstance = auth; 
+
+    // Function to handle Firebase authentication for Canvas environment
+    async function initializeAuthForCanvas() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+          console.log("Firebase: Signed in with custom token.");
+        } else {
+          await signInAnonymously(auth);
+          console.log("Firebase: Signed in anonymously.");
+        }
+      } catch (error) {
+        console.error("Firebase Auth Error during initialization:", error);
+      }
+    }
+    initializeAuthForCanvas(); // Call authentication on script load
+
+    // Listen for authentication state changes and render the React app
+    onAuthStateChanged(auth, async (user) => { 
+      const initialLoadingScreen = document.getElementById('initial-loading');
+      if (initialLoadingScreen) {
+        initialLoadingScreen.style.display = 'none'; // Hide loading screen once auth state is known
+      }
+
+      if (!user) {
+        console.log("Firebase Auth State Changed. No user logged in. Redirecting to login.html...");
+        window.location.href = 'login.html'; // Redirect if no user
+      } else {
+        console.log("Firebase Auth State Changed. User UID:", user.uid);
+        // Pass the user object to the React render function
+        if (window.renderApp) {
+          window.renderApp(user); 
+        } else {
+          console.error("Window.renderApp is not defined. React app might not be loaded yet.");
+        }
+      }
+    });
+
+    // Global signOut function
+    window.handleSignOut = async () => {
+      try {
+        await signOut(window.firebaseAuthInstance);
+        console.log("home-appliances: User signed out. Redirecting to login.html...");
+        window.location.href = 'login.html';
+      } catch (error) {
+        console.error("home-appliances: Sign Out Error: ", error);
+        // Display custom modal for sign out error
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]';
+        modal.innerHTML = `
+          <div class="bg-white p-2 rounded-sm shadow-md text-center max-w-[150px]">
+            <h3 class="text-sm font-bold text-red-600 mb-2">خطأ في تسجيل الخروج</h3>
+            <p class="text-xs text-gray-700">${error.message || "حدث خطأ أثناء تسجيل الخروج. يرجى المحاولة مرة أخرى."}</p>
+            <button class="mt-2 bg-[#1A2C42] text-white px-2 py-1 text-xs rounded-sm hover:bg-gray-800 transition-colors" onclick="this.parentNode.parentNode.remove()">حسناً</button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+    };
+  </script>
+
+  <!-- React App Script (type="text/babel") -->
   <script type="text/babel">
     const useState = React.useState;
     const useEffect = React.useEffect;
@@ -470,18 +491,15 @@
       const textColorClass = 'text-white';
       const borderColorClass = isSuccess ? 'border-green-400' : 'border-red-400';
 
-      // Use a local state to control visibility for animation
       const [showModal, setShowModal] = useState(false);
 
       useEffect(() => {
-        // Trigger animation after component mounts
         const timer = setTimeout(() => setShowModal(true), 50); 
         return () => clearTimeout(timer);
       }, []);
 
       const handleClose = () => {
         setShowModal(false);
-        // Delay actual removal to allow exit animation
         setTimeout(onClose, 300); 
       };
 
@@ -503,6 +521,7 @@
       );
     };
 
+    // Global function to render the React app after authentication
     window.renderApp = (user) => {
       const initialLoadingScreen = document.getElementById('initial-loading');
       if (initialLoadingScreen) {
@@ -515,23 +534,20 @@
     const Header = ({ currentUser, pageTitle }) => {
         const [cartItemCount, setCartItemCount] = useState(0);
 
-        // Effect to listen to cart changes in Firestore in real-time
         useEffect(() => {
             let unsubscribeCart = () => {};
             if (currentUser && currentUser.uid && window.firebaseFirestore && window.firebaseFirestore.onSnapshot) {
                 const dbInstance = window.firebaseFirestore.getFirestore();
-                // Listen to the 'cartItems' collection for the current user
                 const userCartCollectionRef = window.firebaseFirestore.collection(
                     dbInstance,
                     'artifacts',
-                    window.mercatoAppId, // Use the global appId (now hardcoded)
+                    window.mercatoAppId, 
                     'users',
                     currentUser.uid,
                     'cartItems'
                 );
                 console.log("Header: Listening to cart changes at:", userCartCollectionRef.path);
 
-                // Use onSnapshot to get real-time updates for the collection
                 unsubscribeCart = window.firebaseFirestore.onSnapshot(userCartCollectionRef, (snapshot) => {
                     let totalCount = 0;
                     snapshot.forEach(doc => {
@@ -544,12 +560,12 @@
                     console.error("Header: Error fetching cart items:", error);
                 });
             } else {
-                setCartItemCount(0); // Reset cart count if user logs out or Firebase isn't ready
+                setCartItemCount(0);
                 console.log("Header: Not listening to cart (no user or Firebase not ready).");
             }
 
-            return () => unsubscribeCart(); // Cleanup listener on component unmount
-        }, [currentUser]); // Re-run effect if currentUser changes
+            return () => unsubscribeCart();
+        }, [currentUser]);
 
       const handleGoBack = () => {
         history.back();
@@ -558,7 +574,6 @@
       return (
         <header className="header-bg text-white p-1.5 shadow-sm rounded-b-md z-50">
           <div className="container mx-auto flex flex-wrap items-center justify-between py-1">
-            {/* Logo and Title (right side of header overall) */}
             <div className="flex items-center space-x-1.5 space-x-reverse">
               <img
                 src="https://i.postimg.cc/8CpKtfQw/file-0000000018d862468d05a4f4346102fe-1.png"
@@ -579,7 +594,6 @@
               </div>
             </div>
 
-            {/* Main Navigation (center) */}
             <nav className="flex items-center space-x-2 space-x-reverse text-xs font-semibold flex-grow justify-center">
               <a href="index.html" className="hover:text-[#D4AF37] transition-colors p-0.5 rounded-xs hover:bg-white hover:bg-opacity-10">
                 الرئيسية
@@ -598,18 +612,15 @@
               </a>
             </nav>
 
-            {/* Profile/Cart/Back buttons (left side of header overall) */}
             <div className="flex items-center space-x-1.5 space-x-reverse">
               {currentUser && currentUser.uid ? (
                 <>
-                  {/* Cart Link/Button */}
                   <a href="cart.html"
                     className="relative p-1.5 rounded-full bg-[#5A7D9D] hover:bg-[#D4AF37] hover:text-[#1A2C42] transition-colors flex items-center justify-center text-white focus:outline-none focus:ring-1 focus:ring-[#D4AF37]"
                     aria-label="السلة"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shopping-cart"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57L23 4H5.2"/>
                     </svg>
-                    {/* Cart Item Count Badge */}
                     {cartItemCount > 0 && (
                         <span className="absolute -top-1 -left-1 bg-red-600 text-white text-[0.6rem] rounded-full px-1.5 py-0.5 font-bold leading-none">
                             {cartItemCount}
@@ -617,7 +628,6 @@
                     )}
                   </a>
 
-                  {/* Profile Link/Button */}
                   <a href="profile.html" className="flex items-center text-white font-bold py-1 px-2 rounded-full bg-[#5A7D9D] hover:bg-[#D4AF37] hover:text-[#1A2C42] transition-colors duration-300 shadow-xs text-xs">
                     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-circle mr-0.5">
                       <circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
@@ -625,7 +635,6 @@
                     الملف الشخصي
                   </a>
 
-                  {/* Back button */}
                   <button
                     onClick={handleGoBack}
                     className="p-1.5 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors flex items-center justify-center text-[#D4AF37] focus:outline-none focus:ring-1 focus:ring-[#D4AF37]"
@@ -663,10 +672,9 @@
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://placehold.co/120x180/1F2E40/F8F8F8?text=صورة+غير+موجودة'; // Adjusted dimensions for placeholder too
+                e.target.src = 'https://placehold.co/120x180/1F2E40/F8F8F8?text=صورة+غير+موجودة'; // Adjusted dimensions for placeholder
               }}
             />
-            {/* Dynamic badge with luxury design */}
             {Math.random() > 0.7 && (
               <span className="absolute badge bg-[#D4AF37] text-[#1A2C42] font-bold px-2 py-1 rounded-full shadow-xs">
                 عرض خاص!
@@ -733,18 +741,14 @@
           }
 
           const dbInstance = window.firebaseFirestore.getFirestore();
-          // The public products collection path: artifacts/{appId}/public/data/products
           let productsRef = window.firebaseFirestore.collection(dbInstance, 'artifacts', window.mercatoAppId, 'public', 'data', 'products');
           let productsQuery = productsRef;
           
           console.log("ProductDisplayGrid: Base products collection path:", productsRef.path);
 
-          // Apply Category filter
           productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('category', '==', categoryCode));
           console.log("ProductDisplayGrid: Applied category filter: category == ", categoryCode);
           
-
-          // Apply Country filter
           if (userCountry && userCountry !== 'اختر الدولة' && userCountry !== 'لم يتم الاختيار' && userCountry !== '') {
             productsQuery = window.firebaseFirestore.query(productsQuery, window.firebaseFirestore.where('availableCountries', 'array-contains', userCountry));
             console.log("ProductDisplayGrid: Applied country filter: availableCountries array-contains ", userCountry);
@@ -756,14 +760,12 @@
              return; 
           }
 
-
           try {
             console.log("ProductDisplayGrid: Attempting to get documents with query...");
             const querySnapshot = await window.firebaseFirestore.getDocs(productsQuery);
             let fetchedProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             console.log("ProductDisplayGrid: Fetched", fetchedProducts.length, "products before client-side filters/sorting.");
 
-            // Client-side search filtering
             if (searchTerm) {
               fetchedProducts = fetchedProducts.filter(product =>
                 product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -771,7 +773,6 @@
               console.log("ProductDisplayGrid: Products after search filter:", fetchedProducts.length);
             }
 
-            // Client-side sorting
             const sortedProducts = [...fetchedProducts].sort((a, b) => {
                 const priceA = parseFloat(String(a.displayPrice || '0').replace(/[^\d.]/g, '')) || 0;
                 const priceB = parseFloat(String(b.displayPrice || '0').replace(/[^\d.]/g, '')) || 0;
@@ -853,7 +854,6 @@
       const [isVisible, setIsVisible] = useState(false);
 
       const toggleVisibility = () => {
-        // Check scroll position of the main scrollable container, not window
         const mainContent = document.querySelector('.main-scroll-content');
         if (mainContent && mainContent.scrollTop > 300) {
           setIsVisible(true);
@@ -896,14 +896,12 @@
       return (
         <footer className="bg-[#0B141F] text-white py-6 px-1.5 mt-10 rounded-t-md shadow-inner-dark z-30">
           <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-2.5 text-center md:text-right">
-            {/* Contact Information */}
             <div className="animate-fade-in-up">
               <h3 className="text-base font-bold mb-1.5 text-[#D4AF37]">تواصل معنا</h3>
               <p className="text-xs mb-1 text-gray-400">البريد الإلكتروني: info@mercato.com</p>
               <p className="text-xs text-gray-400">الهاتف: +966 50 123 4567</p>
             </div>
 
-            {/* Quick Links */}
             <div className="animate-fade-in-up animation-delay-200">
               <h3 className="text-base font-bold mb-1.5 text-[#D4AF37]">روابط سريعة</h3>
               <ul className="space-y-0.75">
@@ -935,7 +933,6 @@
               </ul>
             </div>
 
-            {/* Follow Us */}
             <div className="animate-fade-in-up animation-delay-400">
               <h3 className="text-base font-bold mb-1.5 text-[#D4AF37]">تابعنا</h3>
               <div className="flex justify-center md:justify-end space-x-2.5 space-x-reverse">
@@ -955,7 +952,7 @@
                   className="text-gray-400 hover:text-[#D4AF37] transition-colors transform hover:scale-110 duration-300"
                   aria-label="Instagram"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucude-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
                 </a>
                 <a
                   href="https://t.me/mercato00"
@@ -984,10 +981,10 @@
       const [sortOrder, setSortOrder] = useState('asc');
       const [modalInfo, setModalInfo] = useState(null);
       
-      // NEW: State for user country, initialized from localStorage or default 'SA'
+      // State for user country, initialized from localStorage or default 'SA'
       const [userCountry, setUserCountry] = useState(() => localStorage.getItem('mercato_selected_country') || 'SA');
 
-      // NEW: Listen for real-time updates to user profile document
+      // Listen for real-time updates to user profile document
       useEffect(() => {
         let unsubscribeProfile = () => {};
         if (currentUser && currentUser.uid && window.firebaseFirestore) {
@@ -1007,8 +1004,8 @@
             if (docSnap.exists()) {
               const data = docSnap.data();
               const fetchedCountry = data.country || 'SA';
-              if (fetchedCountry !== userCountry) {
-                console.log("App: User country changed in Firestore:", fetchedCountry);
+              if (fetchedCountry !== userCountry) { // Only update if country actually changed
+                console.log("App: User country changed in Firestore via onSnapshot:", fetchedCountry);
                 setUserCountry(fetchedCountry);
                 localStorage.setItem('mercato_selected_country', fetchedCountry);
               }
@@ -1027,24 +1024,23 @@
             }
           }, (error) => {
             console.error("App: Error listening to user profile:", error);
+            showModal('خطأ في مزامنة الدولة', 'تعذر تحديث معلومات دولتك تلقائيًا.', true);
           });
         }
 
-        // Cleanup listener on component unmount or user change
         return () => unsubscribeProfile();
-      }, [currentUser]); // Re-run if currentUser changes
+      }, [currentUser, showModal, userCountry]); // Keeping userCountry in dependencies for safety
 
       // Mapping country codes to full names for display
       const countryNames = {
           'SA': 'المملكة العربية السعودية',
           'KW': 'الكويت',
           'EG': 'مصر',
-          // أضف المزيد من الدول هنا حسب الحاجة
+          // Add more countries as needed
       };
       const displayedCountryName = countryNames[userCountry] || 'غير محدد';
       console.log("App: Rendering with effectiveUserCountryCode:", userCountry, "and displayed as:", displayedCountryName);
 
-      // Function to display a custom modal (replaces alert/confirm)
       const showModal = useCallback((title, message, isError = false) => {
         setModalInfo({ title, message, type: isError ? 'error' : 'success', onClose: () => setModalInfo(null) });
       }, []); 
@@ -1073,7 +1069,6 @@
         }
       };
 
-      // NEW: Function to handle country change from the select input
       const handleCountryChange = async (e) => {
         const newCountryCode = e.target.value;
         if (!currentUser || !currentUser.uid) {
@@ -1097,14 +1092,10 @@
                 'profile'
             );
             
-            // Update Firestore first
-            await window.firebaseFirestore.updateDoc(userProfileDocRef, { country: newCountryCode });
+            await window.firebaseFirestore.setDoc(userProfileDocRef, { country: newCountryCode }, { merge: true });
             
-            // Update local state and localStorage (onSnapshot will also pick this up, but explicit update is faster)
-            setUserCountry(newCountryCode);
-            localStorage.setItem('mercato_selected_country', newCountryCode);
             showModal('تم التغيير!', `تم تغيير دولتك إلى ${countryNames[newCountryCode] || newCountryCode}.`);
-            console.log("App: Country updated to:", newCountryCode);
+            console.log("App: Country updated in Firestore to:", newCountryCode);
 
         } catch (error) {
             console.error("Error updating user country:", error);
@@ -1112,7 +1103,6 @@
         }
       };
 
-      // Function to handle adding product to cart
       const handleAddToCart = useCallback(async (product) => {
           if (!currentUser || !currentUser.uid) {
               showModal('خطأ في المصادقة', 'الرجاء تسجيل الدخول لإضافة المنتجات إلى السلة.', true);
@@ -1126,25 +1116,21 @@
 
           try {
               const dbInstance = window.firebaseFirestore.getFirestore();
-              // Path to user's private cart items collection
               const cartItemsCollectionRef = window.firebaseFirestore.collection(
                   dbInstance,
                   'artifacts',
-                  window.mercatoAppId, // Use the global appId (now hardcoded)
+                  window.mercatoAppId, 
                   'users',
                   currentUser.uid,
                   'cartItems' 
               );
               console.log("Adding to cart: Cart collection path:", cartItemsCollectionRef.path);
 
-
-              // Check if the item already exists in the cart for the current user
               const q = window.firebaseFirestore.query(cartItemsCollectionRef, window.firebaseFirestore.where('productId', '==', product.id));
               console.log("Adding to cart: Checking for existing item with productId:", product.id);
               const querySnapshot = await window.firebaseFirestore.getDocs(q);
 
               if (!querySnapshot.empty) {
-                  // If item exists, update its quantity
                   const existingDocRef = querySnapshot.docs[0].ref;
                   const currentQuantity = querySnapshot.docs[0].data().quantity || 0;
                   await window.firebaseFirestore.updateDoc(
@@ -1157,7 +1143,6 @@
                   showModal('تم التحديث!', `تم تحديث كمية المنتج "${product.name}" في سلتك إلى ${currentQuantity + 1}.`);
                   console.log("Cart: Updated quantity for existing product:", product.name);
               } else {
-                  // If item does not exist, add it as a new document to the cartItems collection
                   await window.firebaseFirestore.addDoc(cartItemsCollectionRef, {
                       productId: product.id, 
                       name: product.name,
@@ -1180,22 +1165,23 @@
 
       return (
         <div dir="rtl" className="flex flex-col min-h-screen">
+          {/* Header remains fixed at the top */}
           <Header pageTitle="أدوات منزلية" currentUser={currentUser} />
           
-          {/* Main scrollable content area */}
+          {/* Main scrollable content area - takes remaining vertical space */}
           <div className="flex-grow overflow-y-auto main-scroll-content">
             <main className="container mx-auto my-10 px-2.5 relative z-30">
                 <h2 className="text-4xl font-extrabold text-[#F8F8F8] text-center mb-6 mt-12 animate-fade-in-up">
                 منتجات قسم الأدوات المنزلية
                 </h2>
 
-                {/* Updated: Display and allow change of user country */}
+                {/* Display and allow change of user country */}
                 <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-4 md:space-x-reverse text-sm text-[#5A7D9D] mb-4">
                     <div className="flex items-center space-x-1.5 space-x-reverse">
                         <span className="font-bold">البلد الحالي:</span>
                         <span className="font-bold text-[#D4AF37]">{displayedCountryName}</span>
                     </div>
-                    <div className="relative inline-block text-[#F8F8F8] z-20"> {/* Higher z-index for dropdown */}
+                    <div className="relative inline-block text-[#F8F8F8] z-20"> 
                         <select
                             onChange={handleCountryChange}
                             value={userCountry}
@@ -1204,14 +1190,13 @@
                             <option value="SA">المملكة العربية السعودية</option>
                             <option value="EG">مصر</option>
                             <option value="KW">الكويت</option>
-                            {/* أضف المزيد من الدول هنا */}
+                            {/* Add more countries here */}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
                             <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
                         </div>
                     </div>
                 </div>
-
 
                 {/* Sorting controls */}
                 <div className="flex justify-end mb-4">
@@ -1228,9 +1213,9 @@
                     <option value="name_desc">الاسم: ي-أ</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
-                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
+                            <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
+                        </div>
                     </div>
-                </div>
                 </div>
 
                 <ProductDisplayGrid 
@@ -1238,16 +1223,16 @@
                     categoryCode="homeappliances" 
                     sortBy={sortBy} 
                     sortOrder={sortOrder} 
-                    userCountry={userCountry} // Pass the state variable
+                    userCountry={userCountry} 
                     onAddToCart={handleAddToCart}
                 />
             </main>
-            <Footer /> {/* Footer is now inside the scrollable content */}
+            {/* Footer is now inside the scrollable content */}
+            <Footer /> 
           </div>
 
           <ScrollToTopButton />
 
-          {/* Render CustomModal if modalInfo state is set */}
           {modalInfo && <CustomModal {...modalInfo} />}
         </div>
       );
