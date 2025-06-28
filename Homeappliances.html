@@ -1022,7 +1022,7 @@
         return () => unsubscribeProfile();
       }, [currentUser, showModal, userCountry]); // Keeping userCountry in dependencies for re-render consistency
 
-      // Mapping country codes to full names for display
+      // Mapping country codes to full names for display - UPDATED
       const countryNames = {
           'KW': 'الكويت',
           'QA': 'قطر',
@@ -1031,7 +1031,10 @@
           'SA': 'المملكة العربية السعودية',
           'EG': 'مصر',
           'JO': 'الأردن',
-          'IQ': 'العراق'
+          'IQ': 'العراق',
+          'OM': 'عمان', // Added Oman
+          'SY': 'سوريا', // Added Syria
+          'LB': 'لبنان' // Added Lebanon
       };
       const displayedCountryName = countryNames[userCountry] || 'غير محدد';
       console.log("App: Rendering with effectiveUserCountryCode:", userCountry, "and displayed as:", displayedCountryName);
@@ -1193,6 +1196,9 @@
                             <option value="BH">البحرين</option>
                             <option value="JO">الأردن</option>
                             <option value="IQ">العراق</option>
+                            <option value="OM">عمان</option>
+                            <option value="SY">سوريا</option>
+                            <option value="LB">لبنان</option>
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-[#D4AF37]">
                             <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 6.757 7.586 5.343 9z"/></svg>
